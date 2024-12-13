@@ -1,0 +1,8 @@
+Info: Initialize Process; at 2024-12-09T15:55:43.205290892
+Info: Executing command :e test.js; at 2024-12-09T15:55:54.162722565
+Info: Executing command :m test.js; at 2024-12-09T15:56:00.994186583
+Info: Entering Ishtar 'Modify' mode; at 2024-12-09T15:56:00.994461399
+Info: Entering Ishtar 'Cmd' mode; at 2024-12-09T15:56:11.404047414
+Info: Executing command :s; at 2024-12-09T15:56:12.458091467
+Info: Executing command :q; at 2024-12-09T15:56:17.898945178
+Info: Finished Process; at 2024-12-09T15:56:17.899118674
