@@ -1,10 +1,6 @@
-use std::{
-    ops::{Deref, DerefMut},
-    time::Duration,
-};
+use std::ops::{Deref, DerefMut};
 
 use ratatui::{prelude::Rect, widgets::Widget};
-use tree_sitter_highlight::Highlighter;
 
 use super::text_area::TextArea;
 
@@ -17,7 +13,6 @@ pub struct WriteableArea {
     writers: Vec<TextArea>,
     order: WriteableAreaOrder,
     focused_writer: usize,
-    highlighter: Highlighter,
     area: (u16, u16),
 }
 
@@ -28,7 +23,6 @@ impl WriteableArea {
             order: WriteableAreaOrder::Horizontal,
             focused_writer: 0,
             area: (w, h),
-            highlighter: Highlighter::new(),
         };
         s.create_area();
         s
@@ -39,7 +33,6 @@ impl WriteableArea {
             order: WriteableAreaOrder::Vertical,
             focused_writer: 0,
             area: (w, h),
-            highlighter: Highlighter::new(),
         };
         s.create_area();
         s
@@ -69,6 +62,14 @@ impl WriteableArea {
     }
     pub fn focus(&self) -> usize {
         self.focused_writer
+    }
+    pub fn set_focus_next(&mut self) {
+        self.set_focus(self.focused_writer + 1);
+    }
+    pub fn set_focus_back(&mut self) {
+        if self.focused_writer > 0 {
+            self.set_focus(self.focused_writer - 1);
+        }
     }
     pub fn set_focus(&mut self, focus: usize) {
         self.focused_writer = focus.min(self.len() - 1);
@@ -116,6 +117,15 @@ impl WriteableArea {
     pub fn create_area(&mut self) {
         self.writers.push(TextArea::new(0, 0, 0, 2));
         self.modify_areas();
+    }
+    pub fn delete_current_area(&mut self) -> Option<TextArea> {
+        if !self.writers.is_empty() {
+            let data = Some(self.writers.remove(self.focused_writer));
+            self.focused_writer -= 1;
+            data
+        } else {
+            None
+        }
     }
     pub fn delete_area(&mut self, idx: usize) -> Option<TextArea> {
         let idx = idx.min(self.len() - 1);

@@ -4,10 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.94"
 chrono = "0.4.38"
+copypasta = "0.10.1"
 ratatui = "0.29.0"
 tree-sitter = "0.24.4"
 tree-sitter-highlight = "0.24.4"
 tree-sitter-javascript = "0.23.1"
 unicode-normalization = "0.1.24"
-
+isht = { path = "./isht/" }
+[workspace]
+members = ["./isht"]

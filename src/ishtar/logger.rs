@@ -3,7 +3,6 @@ use std::{
     fs::File,
     io::Write,
     ops::{Deref, DerefMut},
-    process::Command,
 };
 #[derive(Debug)]
 pub enum LogLevel {
@@ -18,28 +17,13 @@ pub struct IshtarLogger {
     queue: String,
 }
 impl IshtarLogger {
-    pub fn new(keep: bool, only_write: bool) -> std::io::Result<Self> {
-        if !only_write {
-            if cfg!(target_family = "windows") {
-                let mut cmd = Command::new("cmd");
-                cmd.arg("--Command")
-                    .arg("$input | Measure-Object -Line -Word, -Character");
-                cmd
-            } else {
-                let mut cmd = Command::new("gnome-terminal");
-                cmd.arg("--")
-                    .arg("bash")
-                    .arg("-c")
-                    .arg("bash -c \"tail -f ./tmp/log.txt; exec tail\"");
-                cmd
-            }
-            .spawn()?;
-        }
+    pub fn new() -> std::io::Result<Self> {
+        let f_path = std::path::Path::new("./tmp/log.txt");
         Ok(Self {
-            f: if keep {
-                File::options().append(true).open("./tmp/log.txt")?
+            f: if f_path.exists() {
+                File::create(f_path).unwrap()
             } else {
-                File::create("./tmp/log.txt")?
+                File::create_new(f_path).unwrap()
             },
             queue: String::new(),
         })
@@ -70,7 +54,7 @@ impl IshtarLogger {
         self.log_data(p, level)
     }
     pub fn debug(&mut self, p: Arguments<'_>, level: LogLevel) -> usize {
-        self.log_data(format!("{:#?}", p), level)
+        self.log_data(format_args!("{:#?}", p), level)
     }
     pub fn buffer(&mut self, buf: &[u8], level: LogLevel) -> usize {
         let buf = String::from_utf8_lossy(buf);

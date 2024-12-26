@@ -1,3 +1,4 @@
+mod configuration;
 mod enums;
 mod logger;
 mod widgets;
@@ -5,9 +6,12 @@ use std::{
     env,
     ops::{Deref, DerefMut},
     path::PathBuf,
+    process::ExitStatus,
 };
 
+use isht::{CmdTask, ConfigStatment};
 use logger::IshtarLogger;
+use widgets::{clipboard::IshtarClipboard, keybind_handler::KeybindHandler};
 
 use crate::helpers::terminal_size;
 use ratatui::{
@@ -23,6 +27,7 @@ use ratatui::{
 };
 
 use self::{
+    configuration::IshtarConfiguration,
     enums::{CmdResponse, IshtarMessage, IshtarMode},
     widgets::{command_interpreter::CommandInterpreter, writeable_area::WriteableArea},
 };
@@ -33,32 +38,56 @@ pub struct Ishtar {
     writer: WriteableArea,
     logger_area: IshtarLogger,
     cursor: (usize, usize),
+    saved_cursor: (usize, usize),
     size: (u16, u16),
     mode: IshtarMode,
     cmd: CommandInterpreter,
+    clipboard: IshtarClipboard,
+    keybinds: KeybindHandler,
 }
-
-impl Ishtar {
-    pub fn new(savelogs: bool) -> std::io::Result<Self> {
+impl Default for Ishtar {
+    fn default() -> Self {
         let size = terminal_size();
-        Ok(Self {
+        let configs = Self::get_configs();
+        Self {
             current_path: env::current_dir().unwrap(),
             exit: false,
             initialized: true,
             cursor: (0, size.1 as usize),
+            saved_cursor: (0, size.1 as usize),
             cmd: CommandInterpreter::new(),
             size,
             writer: WriteableArea::new_vertical(size.0, size.1 - 1),
-            logger_area: IshtarLogger::new(savelogs, !cfg!(debug_assertions))?,
+            logger_area: IshtarLogger::new().unwrap(),
+            clipboard: IshtarClipboard::new(),
             mode: IshtarMode::Cmd,
-        })
+            keybinds: KeybindHandler::new(configs.keybinds),
+        }
+    }
+}
+impl Ishtar {
+    pub fn get_configs() -> IshtarConfiguration {
+        let path_location = env::var("CONFIG_PATH").expect(
+            "Must set CONFIG_PATH during compilation time. Try CONFIG_PATH=<path> cargo build",
+        );
+        let file_path = std::path::Path::new(&path_location);
+        if file_path.exists() {
+            let content = std::fs::read_to_string(file_path).unwrap();
+            IshtarConfiguration::from_content(content).unwrap() //parses the file and creates a configutation
+        } else {
+            println!("The path does not exists");
+            IshtarConfiguration::default()
+        }
+    }
+    pub fn new() -> Self {
+        Default::default()
     }
     fn draw(&mut self, f: &mut Frame) {
         f.set_cursor_position(self.cursor_position());
         f.render_widget(self, f.area());
     }
     pub fn run(&mut self) -> std::io::Result<()> {
-        self.display(format!("Initialize Process",), logger::LogLevel::Info);
+        self.display("Initialize Process", logger::LogLevel::Info);
         let mut terminal = init();
         terminal
             .backend_mut()
@@ -69,21 +98,15 @@ impl Ishtar {
             if self.exit {
                 break;
             }
-            //self.display("Requested Drawing", logger::LogLevel::Info)?;
             terminal.draw(|f| self.draw(f))?;
             self.handle_event()?;
             self.update_cursor();
         }
-        self.finish()?;
         disable_raw_mode()?;
         terminal
             .backend_mut()
             .execute(LeaveAlternateScreen)
             .unwrap();
-        Ok(())
-    }
-    pub fn finish(&mut self) -> std::io::Result<()> {
-        self.display("Finished Process", logger::LogLevel::Info);
         Ok(())
     }
     pub fn request_exit(&mut self) {
@@ -97,7 +120,7 @@ impl Ishtar {
         (self.cursor.0
             + match self.mode {
                 IshtarMode::Cmd => 0,
-                IshtarMode::Modify => self.writer.xoffset(),
+                IshtarMode::Modify | IshtarMode::Selection => self.writer.xoffset(),
             }) as u16
     }
     fn cursor_position(&self) -> Position {
@@ -109,7 +132,7 @@ impl Ishtar {
                 self.cursor.0 = self.cmd.cursor();
                 self.cursor.1 = (self.size.1 - 1) as usize;
             }
-            IshtarMode::Modify => {
+            IshtarMode::Modify | IshtarMode::Selection => {
                 let cursor = self.writer.cursor();
                 self.cursor.0 = cursor.0;
                 self.cursor.1 = cursor.1;
@@ -122,8 +145,15 @@ impl Ishtar {
             logger::LogLevel::Info,
         );
         match mode {
-            IshtarMode::Modify => self.cmd.set("Modifying"),
+            IshtarMode::Modify => {
+                self.cmd.set("Modifying");
+                self.writer.enter_writing();
+            }
             IshtarMode::Cmd => self.cmd.clear(),
+            IshtarMode::Selection => {
+                self.cmd.set("Selection");
+                self.writer.enter_selection();
+            }
         }
         self.mode = mode;
     }
@@ -150,7 +180,133 @@ impl Ishtar {
         }
         Ok(())
     }
-    pub fn handle_key(&mut self, key: KeyEvent) -> std::io::Result<IshtarMessage> {
+    pub fn mode_id(&self) -> usize {
+        match self.mode {
+            IshtarMode::Cmd => 0,
+            IshtarMode::Modify => 1,
+            IshtarMode::Selection => 2,
+        }
+    }
+    pub fn save_position(&mut self) {
+        self.saved_cursor.0 = self.x_cursor_position() as usize;
+        self.saved_cursor.1 = self.cursor.1;
+    }
+    pub fn exec_cmd(&mut self, cmd: &String) -> std::io::Result<ExitStatus> {
+        std::process::Command::new(cmd)
+            .spawn()
+            .map(|mut child| child.wait())?
+    }
+    pub fn handle_task(&mut self, task: &CmdTask) {
+        match task {
+            CmdTask::CopySelection | CmdTask::CopyToSys | CmdTask::CopyToEditor => {
+                let data = self
+                    .writer
+                    .copy_selection(&mut self.clipboard, matches!(task, CmdTask::CopyToEditor));
+                self.handle_task(&data);
+            }
+            CmdTask::SelectLine => {
+                self.writer.goto_init_of_line();
+                self.change_mode(IshtarMode::Selection);
+                self.writer.goto_end_of_line();
+            }
+            CmdTask::PasteSys | CmdTask::PasteEditor => {
+                let content = if matches!(task, CmdTask::PasteEditor) {
+                    self.clipboard.get_virtual()
+                } else {
+                    &self.clipboard.get()
+                };
+                let data = self.writer.paste(content);
+                self.handle_task(&data);
+            }
+
+            CmdTask::DeleteLine => self.writer.delete_line(),
+
+            CmdTask::SavePos => self.save_position(),
+            CmdTask::MoveSaved => self.set_cursor_at(self.saved_cursor.0, self.saved_cursor.1),
+
+            CmdTask::Write(content) => {
+                self.writer.paste(content);
+            }
+            CmdTask::CreateWindow => {
+                self.writer.create_area();
+            }
+            CmdTask::DeleteWindow => {
+                self.writer.delete_current_area();
+            }
+            CmdTask::SetWindowUp => self.writer.set_focus_back(),
+            CmdTask::SetWindowDown => self.writer.set_focus_next(),
+
+            CmdTask::ExecCmd(cmd) => {
+                let _ = self.exec_cmd(cmd);
+            }
+            CmdTask::ExecutePrompt(prompt) => {
+                self.cmd.execute_cmd(prompt);
+            }
+            CmdTask::MoveIOL => self.writer.goto_init_of_line(),
+            CmdTask::MoveEOL => self.writer.goto_end_of_line(),
+            CmdTask::MoveIOB => self.writer.goto_init_of_file(),
+            CmdTask::MoveEOB => self.writer.goto_end_of_file(),
+            CmdTask::MoveToLine(n) => self.writer.move_y(*n as i32),
+            CmdTask::MoveToRow(n) => self.writer.move_x(*n as i32),
+
+            CmdTask::EnterNormal => self.change_mode(IshtarMode::Cmd),
+            CmdTask::EnterModify => self.change_mode(IshtarMode::Modify),
+            CmdTask::EnterSelection => self.change_mode(IshtarMode::Selection),
+
+            CmdTask::SaveFile => self.writer.save(&self.current_path).unwrap(),
+            e => panic!("Must implement {e:?}"),
+        }
+    }
+    fn handle_tasks(&mut self, tasks: &Vec<ConfigStatment>) {
+        for task in tasks {
+            match task {
+                ConfigStatment::Task(t) => self.handle_task(t),
+                ConfigStatment::Cmd(c) => {
+                    if let Some(tasks) = self.keybinds.get(c, self.mode_id()) {
+                        self.handle_tasks(&tasks.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    fn handle_key(&mut self, key: KeyEvent) -> std::io::Result<IshtarMessage> {
+        if !key.modifiers.is_empty() && !self.keybinds.listening() {
+            self.keybinds.start_listening(key.code, key.modifiers);
+            let content = self
+                .keybinds
+                .buffer
+                .join("-")
+                .split(' ')
+                .collect::<Vec<&str>>()
+                .join("")
+                .to_string();
+            if let Some(tasks) = self.keybinds.get(&content, self.mode_id()).cloned() {
+                self.handle_tasks(&tasks);
+                self.keybinds.stop_listening();
+            }
+            return Ok(IshtarMessage::Null);
+        }
+        if key.code == KeyCode::Enter && self.keybinds.listening() {
+            let content = self
+                .keybinds
+                .buffer
+                .join("-")
+                .split(' ')
+                .collect::<Vec<&str>>()
+                .join("")
+                .to_string();
+            self.display(format!("Exetuing cmd {content}"), logger::LogLevel::Info);
+            if let Some(tasks) = self.keybinds.get(&content, self.mode_id()).cloned() {
+                self.handle_tasks(&tasks);
+            }
+            self.keybinds.stop_listening();
+            return Ok(IshtarMessage::Null);
+        }
+        if self.keybinds.listening() {
+            self.keybinds.handle(key.code);
+            return Ok(IshtarMessage::Null);
+        }
         match self.mode {
             IshtarMode::Cmd => {
                 match key.code {
@@ -182,48 +338,31 @@ impl Ishtar {
                         self.writer.write_char(c);
                     }
                     KeyCode::Backspace => self.writer.backspace(),
+                    KeyCode::Delete => self.writer.del(),
                     KeyCode::Enter => self.writer.newline(),
                     KeyCode::Up => self.writer.move_y(-1),
                     KeyCode::Down => self.writer.move_y(1),
                     KeyCode::Left => self.writer.move_x(-1),
                     KeyCode::Right => self.writer.move_x(1),
-                    KeyCode::Insert => {
-                        self.writer.create_area();
-                    }
-                    KeyCode::Delete => {
-                        self.writer.delete_area(99);
-                    }
-                    KeyCode::PageDown => self.writer.set_focus(self.writer.focus() + 1),
-                    KeyCode::PageUp => {
-                        let focus = self.writer.focus();
-                        if focus != 0 {
-                            self.writer.set_focus(focus - 1)
-                        }
-                    }
-                    KeyCode::End => {
-                        if key.modifiers.contains(KeyModifiers::CONTROL) {
-                            self.writer.goto_end_of_file()
-                        } else {
-                            self.writer.goto_end_of_line()
-                        }
-                    }
-                    KeyCode::Home => {
-                        if key.modifiers.contains(KeyModifiers::CONTROL) {
-                            self.writer.goto_init_of_file()
-                        } else {
-                            self.writer.goto_init_of_line()
-                        }
-                    }
-                    KeyCode::F(5) => {
-                        self.logger_area.display(
-                            format!("Wrote in file {:?}", self.writer.file_name()),
-                            logger::LogLevel::Info,
-                        );
-                        self.writer.save(&self.current_path)?
-                    }
+                    KeyCode::End => self.writer.goto_end_of_line(),
+                    KeyCode::Home => self.writer.goto_init_of_line(),
+
                     _ => {
                         self.initialized = false;
                     }
+                }
+                self.cursor = self.writer.cursor();
+            }
+            IshtarMode::Selection => {
+                match key.code {
+                    KeyCode::Esc => return Ok(IshtarMessage::ChangeMode(IshtarMode::Cmd)),
+                    KeyCode::Up => self.writer.move_y(-1),
+                    KeyCode::Down => self.writer.move_y(1),
+                    KeyCode::Left => self.writer.move_x(-1),
+                    KeyCode::Right => self.writer.move_x(1),
+                    KeyCode::End => self.writer.goto_end_of_line(),
+                    KeyCode::Home => self.writer.goto_init_of_line(),
+                    _ => {}
                 }
                 self.cursor = self.writer.cursor();
             }

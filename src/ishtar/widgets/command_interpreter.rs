@@ -1,12 +1,11 @@
 use std::{collections::HashMap, process::Command};
 
-use ratatui::{
-    layout::Rect,
-    text::{Line, ToLine},
-    widgets::Widget,
-};
+use ratatui::{layout::Rect, text::ToLine, widgets::Widget};
 
-use crate::{helpers::terminal_line::TerminalLine, ishtar::enums::CmdResponse};
+use crate::{
+    helpers::terminal_line::TerminalLine,
+    ishtar::enums::{CmdResponse, IshtarMode},
+};
 pub struct CommandInterpreter {
     line: TerminalLine,
     cursor: usize,
@@ -52,6 +51,7 @@ impl CommandInterpreter {
             'm' => Some(CmdResponse::ChangeMode(
                 crate::ishtar::enums::IshtarMode::Modify,
             )),
+            's' => Some(CmdResponse::ChangeMode(IshtarMode::Selection)),
             _ => None,
         }
     }
@@ -78,6 +78,12 @@ impl CommandInterpreter {
         self.line.clear();
         self.cursor = 0;
     }
+    pub fn execute_cmd(&mut self, cmd: &String) -> Option<CmdResponse> {
+        if let Some(builtin) = self.builtins.get(cmd) {
+            return Some(builtin.clone());
+        }
+        todo!();
+    }
     pub fn execute(&mut self) -> Option<CmdResponse> {
         if let Some(builtin) = self.builtins.get(&self.line.to_string()) {
             return Some(builtin.clone());
@@ -85,7 +91,7 @@ impl CommandInterpreter {
         let mut result = None;
         let string = self.to_string();
         if let Some('!') = string.chars().nth(0) {
-            for cmd in (&string[1..]).split(';') {
+            for cmd in string[1..].split(';') {
                 if let Err(e) = Command::new(cmd).spawn() {
                     self.set(&format!("{:?}", e));
                 };
@@ -101,8 +107,14 @@ impl CommandInterpreter {
             }
         } else {
             match broken_cmd[0] {
+                ":m" => result = Some(CmdResponse::ChangeMode(IshtarMode::Modify)),
                 ":s" => result = Some(CmdResponse::SaveFile),
                 ":q" => result = Some(CmdResponse::Exit),
+                ":sl" => {
+                    result = Some(CmdResponse::ChangeMode(
+                        crate::ishtar::enums::IshtarMode::Selection,
+                    ))
+                }
                 _ => {}
             }
         }
@@ -114,11 +126,6 @@ impl CommandInterpreter {
     }
     pub fn is_empty(&self) -> bool {
         self.line.len() == 0
-    }
-}
-impl ToLine for CommandInterpreter {
-    fn to_line(&self) -> Line<'_> {
-        Line::raw(self.line.to_string())
     }
 }
 impl std::fmt::Display for CommandInterpreter {
