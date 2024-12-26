@@ -1,6 +1,6 @@
 # Ishtar
 
-Ishtar is a text editor built in the terminal written in rust with Ratatui crate which is highly inspired in Neovim. The project itself isn't something big, but only something I'm making for fun and study.
+Ishtar is a text editor highly inspired in Neovim written in rust. The project itself isn't something big and do not pretend to be, but only a for fun and study project.
 ## Basic Features
 
 * Keybinds<br>
