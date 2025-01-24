@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use gapbuf::GapBuffer;
 use isht::CmdTask;
 use ratatui::{
     prelude::Rect,
@@ -12,22 +13,27 @@ use ratatui::{
 };
 use unicode_normalization::char::compose;
 
-use crate::helpers::{min_max, terminal_line::TerminalLine, Vec2};
+use crate::helpers::{
+    char_size_backwards, char_size_init, min_max, terminal_line::TerminalLine, Vec2,
+};
 
 use super::clipboard::IshtarClipboard;
+
 #[derive(Eq, PartialEq)]
 pub enum TextAreaMode {
     Writing,
     Selecting,
 }
-
+///Writing buffer
 pub struct TextArea {
     lines: Vec<TerminalLine>,
     position: Vec2,
     size: Vec2,
     selection_cursor: Vec2,
-    x: usize,
-    y: usize,
+    x: usize,                 //cursorx
+    y: usize,                 //cursory
+    byte_offsets: Vec<usize>, //will be used for getting the offset received from multibyte chars and so,
+    //for aligning the cursor
     punctuator: Option<char>,
     editing_file: Option<PathBuf>,
     mode: TextAreaMode,
@@ -42,6 +48,7 @@ impl TextArea {
             selection_cursor: Vec2::new(0, 0),
             x: 0,
             y: 0,
+            byte_offsets: vec![0],
             lines: vec![TerminalLine::new()],
             editing_file: None,
             mode: TextAreaMode::Writing,
@@ -69,15 +76,23 @@ impl TextArea {
     pub fn file_position(&self) -> (u16, u16) {
         (0, self.size.y())
     }
+    ///Gets the X position of the cursor inside the bounds of the size
+    #[inline]
     pub fn cursor_x(&self) -> usize {
-        self.x % self.size.x() as usize
+        (self.x % self.size.x() as usize).saturating_sub(self.byte_offsets[self.y])
     }
+    ///Gets the Y position of the cursor inside the bounds of the size
+    #[inline]
     pub fn cursor_y(&self) -> usize {
         self.y % (self.size.y() - 1) as usize
     }
+    ///Gets the position x of the area(left corner)
+    #[inline]
     pub fn posx(&self) -> u16 {
         self.position.x()
     }
+    ///Gets the y position of the area(top corner)
+    #[inline]
     pub fn posy(&self) -> u16 {
         self.position.y()
     }
@@ -101,9 +116,13 @@ impl TextArea {
         *self.size.y_mut() = h;
         old
     }
+    ///Gets the X position of the cursor without checking bounds
+    #[inline]
     pub fn x(&self) -> usize {
         self.x
     }
+    ///Gets the X position of the cursor without checking bounds
+    #[inline]
     pub fn y(&self) -> usize {
         self.y
     }
@@ -113,6 +132,7 @@ impl TextArea {
     pub fn h(&self) -> u16 {
         self.size.y()
     }
+    ///Gets X offset from the left due to line number
     pub fn xoffset(&self) -> usize {
         1 + self.y.to_string().len()
     }
@@ -165,38 +185,37 @@ impl TextArea {
         }
         vec
     }
+    fn move_after_insert(&mut self, c: char) {
+        self.lines[self.y].insert(self.x, c);
+        if c.len_utf8() > 1 {
+            self.byte_offsets[self.y] += c.len_utf8() - 1;
+            self.x += c.len_utf8();
+        } else {
+            self.x += 1;
+        }
+    }
     pub fn write_char(&mut self, c: char) {
         if self.mode == TextAreaMode::Selecting {
             return;
         }
-        let Some(line) = self.lines.get_mut(self.y) else {
-            return;
-        };
         if c.is_ascii_punctuation() {
             if let Some(c) = self.punctuator {
-                line.insert(self.x, c);
+                self.move_after_insert(c);
                 self.punctuator = None;
-                self.x += 1;
             }
-            line.insert(self.x, c);
-            self.x += 1;
+            self.move_after_insert(c);
             return;
         }
         if let Some(punc) = self.punctuator {
             if let Some(c) = compose(c, punc) {
-                line.insert(self.x, c);
+                self.move_after_insert(c);
                 self.punctuator = None;
-                self.x += 1;
                 return;
             };
-            line.insert(self.x, punc);
-            self.x += 1;
-            line.insert(self.x, c);
-            self.punctuator = None;
-            self.x += 1;
+            self.move_after_insert(punc);
+            self.move_after_insert(c);
         } else {
-            line.insert(self.x, c);
-            self.x += 1;
+            self.move_after_insert(c);
         }
     }
     pub fn backspace(&mut self) {
@@ -205,14 +224,18 @@ impl TextArea {
         }
         if self.x > 0 {
             if let Some(line) = self.lines.get_mut(self.y) {
-                self.x -= 1;
-                line.remove(self.x);
+                if let Some((_, bsize)) = line.remove(self.x - 1, true) {
+                    self.x -= bsize;
+                    if bsize > 1 {
+                        self.byte_offsets[self.y] -= bsize - 1;
+                    }
+                };
             }
         } else if self.y > 0 {
-            let mut line = self.lines.remove(self.y);
+            let line = self.lines.remove(self.y);
             self.y -= 1;
             self.x = self.lines[self.y].len();
-            self.lines[self.y].append_line(&mut line);
+            self.lines[self.y].append_line(line);
         }
     }
     pub fn del(&mut self) {
@@ -222,12 +245,11 @@ impl TextArea {
         if self.line().is_empty() && self.lines.len() > 1 {
             self.lines.remove(self.y);
         } else if self.x == self.line().len() && self.y < self.lines.len() - 1 {
-            let mut line = self.lines.remove(self.y + 1);
-            self.lines[self.y].append_line(&mut line);
+            let line = self.lines.remove(self.y + 1);
+            self.lines[self.y].append_line(line);
             return;
         } else {
-            let x = self.x();
-            self.lines[self.y].remove(x);
+            self.lines[self.y].remove(self.x, false);
         }
     }
     pub fn newline(&mut self) {
@@ -267,33 +289,52 @@ impl TextArea {
         self.y = self.lines.len() - 1;
         self.x = self.lines[self.y].len();
     }
-    pub fn move_y(&mut self, n: i32) {
-        let abs = n.abs() as usize;
-
-        if n < 0 && self.y < abs {
-            //n > y, y - n < 0, usize::min = 0.
-            self.y = 0;
-            return;
-        }
-        if n < 0 {
-            self.y -= abs;
-        } else {
-            self.y += abs
-        };
-        self.y = self.y.min(self.lines.len() - 1);
+    pub fn move_down(&mut self) {
+        self.y = (self.y + 1).min(self.lines.len() - 1);
+        self.x += char_size_backwards(self.line().bytes(), self.x - 1);
         self.x = self.x.min(self.lines[self.y].len());
     }
-    pub fn move_x(&mut self, n: i32) {
-        if n < 0 && self.x < -n as usize {
-            //5 + (-8) = -8 < 0 && 5 < --8, as typeof(y) = usize, set to 0
+
+    pub fn move_up(&mut self) {
+        if self.y == 0 {
             self.x = 0;
             return;
         }
-        if n < 0 {
-            self.x -= -n as usize
-        } else {
-            self.x += n as usize
+        self.y -= 1;
+        self.x += char_size_backwards(self.line().bytes(), self.x - 1);
+        self.x = self.x.min(self.lines[self.y].len());
+    }
+    pub fn move_left(&mut self) {
+        if self.x == 0 {
+            if self.y > 0 {
+                self.y -= 1;
+                self.x = self.lines[self.y].len();
+            }
+            return;
+        }
+        if let Some(b) = self.lines[self.y].get(self.x - 1) {
+            if *b < 0x80 {
+                self.x -= 1;
+            } else {
+                let csize = char_size_backwards(self.lines[self.y].bytes(), self.x - 1);
+                self.x -= csize;
+                if csize > 1 {
+                    self.byte_offsets[self.y] -= csize - 1;
+                }
+            }
         };
+        self.x = self.x.min(self.lines[self.y].len());
+        self.lines[self.y].bytes_mut().set_gap(self.x);
+    }
+    pub fn move_right(&mut self) {
+        if let Some(b) = self.lines[self.y].get(self.x) {
+            if *b < 0x80 {
+                self.x += 1;
+            } else {
+                self.x += char_size_init(*b) as usize;
+                self.byte_offsets[self.y] += char_size_init(*b) as usize;
+            }
+        }
         self.x = self.x.min(self.lines[self.y].len());
     }
     pub fn reset(&mut self) {

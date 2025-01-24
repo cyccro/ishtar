@@ -11,7 +11,11 @@ pub struct CommandInterpreter {
     cursor: usize,
     builtins: HashMap<String, CmdResponse>,
 }
-
+impl Default for CommandInterpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl CommandInterpreter {
     pub fn new() -> Self {
         Self {
@@ -72,7 +76,7 @@ impl CommandInterpreter {
         if self.cursor > 0 {
             self.cursor -= 1;
         }
-        self.line.remove(self.cursor);
+        self.line.remove(self.cursor, true);
     }
     pub fn clear(&mut self) {
         self.line.clear();

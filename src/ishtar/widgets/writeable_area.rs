@@ -37,6 +37,7 @@ impl WriteableArea {
         s.create_area();
         s
     }
+    ///Gets the cursor position
     pub fn cursor(&self) -> (usize, usize) {
         let current_writer = &self.writers[self.focused_writer];
         let w = if let WriteableAreaOrder::Horizontal = self.order {
@@ -51,6 +52,7 @@ impl WriteableArea {
         };
         (w, y)
     }
+    ///Gets how many TexArea this Writeable is handling
     pub fn len(&self) -> usize {
         self.writers.len()
     }

@@ -31,6 +31,7 @@ use self::{
     enums::{CmdResponse, IshtarMessage, IshtarMode},
     widgets::{command_interpreter::CommandInterpreter, writeable_area::WriteableArea},
 };
+///Editor instance containing all data required for working and managing buffers
 pub struct Ishtar {
     current_path: PathBuf,
     exit: bool,
@@ -68,14 +69,14 @@ impl Default for Ishtar {
 impl Ishtar {
     pub fn get_configs() -> IshtarConfiguration {
         let path_location = env::var("CONFIG_PATH").expect(
-            "Must set CONFIG_PATH during compilation time. Try CONFIG_PATH=<path> cargo build",
+            "Must set CONFIG_PATH during compilation time. Try CONFIG_PATH=<path> cargo build --release",
         );
         let file_path = std::path::Path::new(&path_location);
         if file_path.exists() {
             let content = std::fs::read_to_string(file_path).unwrap();
             IshtarConfiguration::from_content(content).unwrap() //parses the file and creates a configutation
         } else {
-            println!("The path does not exists");
+            println!("The path for configuration does not exists. Using default instead");
             IshtarConfiguration::default()
         }
     }
@@ -246,9 +247,8 @@ impl Ishtar {
             CmdTask::MoveEOL => self.writer.goto_end_of_line(),
             CmdTask::MoveIOB => self.writer.goto_init_of_file(),
             CmdTask::MoveEOB => self.writer.goto_end_of_file(),
-            CmdTask::MoveToLine(n) => self.writer.move_y(*n as i32),
-            CmdTask::MoveToRow(n) => self.writer.move_x(*n as i32),
-
+            //CmdTask::MoveToLine(n) => self.writer.move_y(*n as i32),
+            //CmdTask::MoveToRow(n) => self.writer.move_x(*n as i32),
             CmdTask::EnterNormal => self.change_mode(IshtarMode::Cmd),
             CmdTask::EnterModify => self.change_mode(IshtarMode::Modify),
             CmdTask::EnterSelection => self.change_mode(IshtarMode::Selection),
@@ -270,42 +270,48 @@ impl Ishtar {
             }
         }
     }
-    fn handle_key(&mut self, key: KeyEvent) -> std::io::Result<IshtarMessage> {
+    fn keybinds_content(&self) -> String {
+        self.keybinds
+            .buffer
+            .join("-")
+            .split(' ')
+            .collect::<Vec<&str>>()
+            .join("")
+            .to_string()
+    }
+    ///Handles keybind input. Returns Some if it made some change on the keybinds, None otherwhise.
+    ///The returned message does not have relationship with the modification made.
+    fn handle_keybind(&mut self, key: KeyEvent) -> Option<IshtarMessage> {
+        // If got modifier start listening
         if !key.modifiers.is_empty() && !self.keybinds.listening() {
             self.keybinds.start_listening(key.code, key.modifiers);
-            let content = self
-                .keybinds
-                .buffer
-                .join("-")
-                .split(' ')
-                .collect::<Vec<&str>>()
-                .join("")
-                .to_string();
+            let content = self.keybinds_content();
             if let Some(tasks) = self.keybinds.get(&content, self.mode_id()).cloned() {
                 self.handle_tasks(&tasks);
                 self.keybinds.stop_listening();
             }
-            return Ok(IshtarMessage::Null);
+            return Some(IshtarMessage::Null);
         }
+        // Stops listening when pressing enter
         if key.code == KeyCode::Enter && self.keybinds.listening() {
-            let content = self
-                .keybinds
-                .buffer
-                .join("-")
-                .split(' ')
-                .collect::<Vec<&str>>()
-                .join("")
-                .to_string();
+            let content = self.keybinds_content();
             self.display(format!("Exetuing cmd {content}"), logger::LogLevel::Info);
             if let Some(tasks) = self.keybinds.get(&content, self.mode_id()).cloned() {
                 self.handle_tasks(&tasks);
             }
             self.keybinds.stop_listening();
-            return Ok(IshtarMessage::Null);
+            return Some(IshtarMessage::Null);
         }
+        //Dont input but listens to key
         if self.keybinds.listening() {
             self.keybinds.handle(key.code);
-            return Ok(IshtarMessage::Null);
+            return Some(IshtarMessage::Null);
+        }
+        None
+    }
+    fn handle_key(&mut self, key: KeyEvent) -> std::io::Result<IshtarMessage> {
+        if let Some(msg) = self.handle_keybind(key) {
+            return Ok(msg);
         }
         match self.mode {
             IshtarMode::Cmd => {
@@ -335,15 +341,18 @@ impl Ishtar {
                 match key.code {
                     KeyCode::Esc => return Ok(IshtarMessage::ChangeMode(IshtarMode::Cmd)),
                     KeyCode::Char(c) => {
+                        let line = self.writer.line().clone();
+                        let gap = line.bytes().gap();
+                        self.display(format!("{c} {gap} {line}",), logger::LogLevel::Info);
                         self.writer.write_char(c);
                     }
                     KeyCode::Backspace => self.writer.backspace(),
                     KeyCode::Delete => self.writer.del(),
                     KeyCode::Enter => self.writer.newline(),
-                    KeyCode::Up => self.writer.move_y(-1),
-                    KeyCode::Down => self.writer.move_y(1),
-                    KeyCode::Left => self.writer.move_x(-1),
-                    KeyCode::Right => self.writer.move_x(1),
+                    KeyCode::Up => self.writer.move_up(),
+                    KeyCode::Down => self.writer.move_down(),
+                    KeyCode::Left => self.writer.move_left(),
+                    KeyCode::Right => self.writer.move_right(),
                     KeyCode::End => self.writer.goto_end_of_line(),
                     KeyCode::Home => self.writer.goto_init_of_line(),
 
@@ -356,10 +365,10 @@ impl Ishtar {
             IshtarMode::Selection => {
                 match key.code {
                     KeyCode::Esc => return Ok(IshtarMessage::ChangeMode(IshtarMode::Cmd)),
-                    KeyCode::Up => self.writer.move_y(-1),
-                    KeyCode::Down => self.writer.move_y(1),
-                    KeyCode::Left => self.writer.move_x(-1),
-                    KeyCode::Right => self.writer.move_x(1),
+                    KeyCode::Up => self.writer.move_up(),
+                    KeyCode::Down => self.writer.move_down(),
+                    KeyCode::Left => self.writer.move_left(),
+                    KeyCode::Right => self.writer.move_right(),
                     KeyCode::End => self.writer.goto_end_of_line(),
                     KeyCode::Home => self.writer.goto_init_of_line(),
                     _ => {}

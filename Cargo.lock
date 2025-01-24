@@ -346,6 +346,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f81ec6369c545a7d40e4589b5597581fa1c441fe1cce96dd1de43159910a36a2"
 
 [[package]]
+name = "gapbuf"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a010292641ef224ac75104f2c6452e9a6cc74238ef6938e52814904ef77a592"
+
+[[package]]
 name = "gethostname"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -453,6 +459,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "copypasta",
+ "gapbuf",
  "isht",
  "ratatui",
  "tree-sitter",

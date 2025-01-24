@@ -1,7 +1,13 @@
-Info: Initialize Process; at 2024-12-26T16:58:19.125559387
-Info: Executing command :m test.js; at 2024-12-26T16:58:21.209749616
-Info: Entering Ishtar 'Modify' mode; at 2024-12-26T16:58:21.209916917
-Info: Entering Ishtar 'Selection' mode; at 2024-12-26T16:58:22.077004330
-Info: Entering Ishtar 'Modify' mode; at 2024-12-26T16:58:25.703659828
-Info: Entering Ishtar 'Cmd' mode; at 2024-12-26T16:58:25.703749030
-Info: Executing command :q; at 2024-12-26T16:58:32.170529773
+Info: Initialize Process; at 2025-01-19T19:23:39.353677079
+Info: Entering Ishtar 'Modify' mode; at 2025-01-19T19:23:41.260871796
+Info: a 0 ; at 2025-01-19T19:23:41.563756071
+Info: a 1 a; at 2025-01-19T19:23:41.748704904
+Info: a 2 aa; at 2025-01-19T19:23:41.923706670
+Info: ç 3 aaa; at 2025-01-19T19:23:43.156777252
+Info: ã 5 aaaç; at 2025-01-19T19:23:43.980891190
+Info: a 2 aa; at 2025-01-19T19:23:47.348759889
+Info: a 3 aaa; at 2025-01-19T19:23:47.484615071
+Info: a 4 aaaa; at 2025-01-19T19:23:47.620509435
+Info: a 5 aaaaa; at 2025-01-19T19:23:47.748591298
+Info: a 6 aaaaaa; at 2025-01-19T19:23:47.876462376
+Info: ç 7 aaaaaaa; at 2025-01-19T19:23:48.748760542

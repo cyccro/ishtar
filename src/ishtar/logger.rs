@@ -16,9 +16,12 @@ pub struct IshtarLogger {
     f: File,
     queue: String,
 }
+/// Simple logging manager. Logs the contents received into "./tmp/log.txt". In future will be
+/// replaced by OUTDIR flag while building
 impl IshtarLogger {
     pub fn new() -> std::io::Result<Self> {
         let f_path = std::path::Path::new("./tmp/log.txt");
+        //Used to open a terminal and show its contents but only writes on the file now.
         Ok(Self {
             f: if f_path.exists() {
                 File::create(f_path).unwrap()
@@ -54,7 +57,7 @@ impl IshtarLogger {
         self.log_data(p, level)
     }
     pub fn debug(&mut self, p: Arguments<'_>, level: LogLevel) -> usize {
-        self.log_data(format_args!("{:#?}", p), level)
+        self.log_data(format_args!("{}", p), level)
     }
     pub fn buffer(&mut self, buf: &[u8], level: LogLevel) -> usize {
         let buf = String::from_utf8_lossy(buf);
