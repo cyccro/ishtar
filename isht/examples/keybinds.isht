@@ -1,0 +1,31 @@
+[keybinds] --This is a group
+
+<normal> --this is a subgroup
+
+Control-Del = {
+  SavePos
+  EnterSelection
+  MoveEOL
+  CopySelection
+  DeleteSelection
+  MoveSaved
+}
+
+<modify>
+
+Control-S = SaveFile
+
+<selection>
+
+Control-A = {
+  SavePos
+  EnterNormal
+  MoveIOB
+  EnterSelection
+  MoveEOB
+  CopySelection
+  EnterNormal
+  MoveSaved
+}
+
+--Must implement comments

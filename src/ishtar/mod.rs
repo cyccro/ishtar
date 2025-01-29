@@ -9,14 +9,14 @@ use std::{
     process::ExitStatus,
 };
 
-use isht::{CmdTask, ConfigStatment};
+use isht::{CmdTask, ConfigStatment, IshtParseError, IshtarConfiguration};
 use logger::IshtarLogger;
 use widgets::{clipboard::IshtarClipboard, keybind_handler::KeybindHandler};
 
 use crate::helpers::terminal_size;
 use ratatui::{
     crossterm::{
-        event::{self, KeyCode, KeyEvent, KeyModifiers},
+        event::{self, KeyCode, KeyEvent},
         terminal::{disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
         ExecutableCommand,
     },
@@ -27,7 +27,6 @@ use ratatui::{
 };
 
 use self::{
-    configuration::IshtarConfiguration,
     enums::{CmdResponse, IshtarMessage, IshtarMode},
     widgets::{command_interpreter::CommandInterpreter, writeable_area::WriteableArea},
 };
@@ -70,14 +69,15 @@ impl Ishtar {
     ///Gets the configurations based on the given CONFIG_PATH flag used to building. If not given,
     ///throws
     pub fn get_configs() -> IshtarConfiguration {
-        let path_location = env::var("CONFIG_PATH").expect(
-            "Must set CONFIG_PATH during compilation time. Try CONFIG_PATH=<path> cargo build --release",
-        );
-        let file_path = std::path::Path::new(&path_location);
-        let content = std::fs::read_to_string(file_path).expect(
-            "Error during reading file content; check if the file dir was written correctly",
-        );
-        IshtarConfiguration::from_content(content).unwrap() //parses the file and creates a configutation
+        let username = std::env::var("USER").unwrap();
+        let path = format!("/home/{username}/.config/ishtar/config.isht");
+        let file_path = std::path::Path::new(&path);
+        if let Ok(content) = std::fs::read_to_string(file_path) {
+            //parses the file and creates a configutation
+            IshtarConfiguration::from_content(content).unwrap()
+        } else {
+            IshtarConfiguration::new()
+        }
     }
     pub fn new() -> Self {
         Default::default()
