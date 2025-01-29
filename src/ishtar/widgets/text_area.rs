@@ -335,6 +335,35 @@ impl TextArea {
         }
         self.x = self.x.min(self.lines[self.y].len());
     }
+    pub fn move_x(&mut self, n: i16) {
+        let mut dp = n - self.x as i16; //delta post. I really dont think anyone will create a line
+                                        //with 32764 chars
+        if dp > 0 {
+            while dp > 0 {
+                dp -= 1;
+                self.move_right();
+            }
+        } else {
+            while dp < 0 {
+                dp += 1;
+                self.move_left();
+            }
+        }
+    }
+    pub fn move_y(&mut self, n: i16) {
+        let mut dp = n - self.x as i16; //delta post
+        if dp > 0 {
+            while dp > 0 {
+                dp -= 1;
+                self.move_up();
+            }
+        } else {
+            while dp < 0 {
+                dp += 1;
+                self.move_down();
+            }
+        }
+    }
     ///Totally resets the writer.
     pub fn reset(&mut self) {
         self.editing_file = None;
@@ -487,7 +516,7 @@ impl std::fmt::Display for TextArea {
     }
 }
 impl Widget for &mut TextArea {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
+    fn render(self, _: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
     {

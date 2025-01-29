@@ -1,22 +1,2 @@
-Info: Initialize Process; at 2025-01-29T20:51:08.856566363
-Info: Entering Ishtar 'Modify' mode; at 2025-01-29T20:51:18.617613706
-Info: a 0 ; at 2025-01-29T20:51:19.233081727
-Info: a 1 a; at 2025-01-29T20:51:19.417225149
-Info: a 2 aa; at 2025-01-29T20:51:19.569217954
-Info: a 3 aaa; at 2025-01-29T20:51:19.713328194
-Info: ç 4 aaaa; at 2025-01-29T20:51:20.177368730
-Info: a 4 aaaa; at 2025-01-29T20:51:21.648903693
-Info: a 5 aaaaa; at 2025-01-29T20:51:21.825095970
-Info: a 6 aaaaaa; at 2025-01-29T20:51:21.977173922
-Info: a 7 aaaaaaa; at 2025-01-29T20:51:22.129157834
-Info: ç 8 aaaaaaaa; at 2025-01-29T20:51:22.841071368
-Info: ç 10 aaaaaaaça; at 2025-01-29T20:51:22.961232750
-Info: a 0 ; at 2025-01-29T20:51:27.705260985
-Info: a 1 a; at 2025-01-29T20:51:27.857059638
-Info: a 2 aa; at 2025-01-29T20:51:28.025339345
-Info: a 3 aaa; at 2025-01-29T20:51:28.177356146
-Info: a 4 aaaa; at 2025-01-29T20:51:28.329283749
-Info: ç 5 aaaaa; at 2025-01-29T20:51:29.112983599
-Info: ç 7 aaaaaç; at 2025-01-29T20:51:30.256958352
-Info: Entering Ishtar 'Cmd' mode; at 2025-01-29T20:51:37.249014407
-Info: Executing command :q; at 2025-01-29T20:51:39.040861001
+Info: Initialize Process; at 2025-01-29T23:53:00.350951819
+Info: Executing command :q; at 2025-01-29T23:53:29.394039174

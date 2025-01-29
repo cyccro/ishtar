@@ -248,8 +248,8 @@ impl Ishtar {
             CmdTask::MoveEOL => self.writer.goto_end_of_line(),
             CmdTask::MoveIOB => self.writer.goto_init_of_file(),
             CmdTask::MoveEOB => self.writer.goto_end_of_file(),
-            //CmdTask::MoveToLine(n) => self.writer.move_y(*n as i32),
-            //CmdTask::MoveToRow(n) => self.writer.move_x(*n as i32),
+            CmdTask::MoveToLine(n) => self.writer.move_y(*n as i16),
+            CmdTask::MoveToRow(n) => self.writer.move_x(*n as i16),
             CmdTask::EnterNormal => self.change_mode(IshtarMode::Cmd),
             CmdTask::EnterModify => self.change_mode(IshtarMode::Modify),
             CmdTask::EnterSelection => self.change_mode(IshtarMode::Selection),
@@ -293,20 +293,23 @@ impl Ishtar {
             }
             return Some(IshtarMessage::Null);
         }
-        // Stops listening when pressing enter
-        if key.code == KeyCode::Enter && self.keybinds.listening() {
-            let content = self.keybinds_content();
-            self.display(format!("Exetuing cmd {content}"), logger::LogLevel::Info);
-            if let Some(tasks) = self.keybinds.get(&content, self.mode_id()).cloned() {
-                self.handle_tasks(&tasks);
-            }
-            self.keybinds.stop_listening();
-            return Some(IshtarMessage::Null);
-        }
         //Dont input but listens to key
         if self.keybinds.listening() {
-            self.keybinds.handle(key.code);
-            return Some(IshtarMessage::Null);
+            match key.code {
+                KeyCode::Enter => {
+                    let content = self.keybinds_content();
+                    self.display(format!("Exetuing cmd {content}"), logger::LogLevel::Info);
+                    if let Some(tasks) = self.keybinds.get(&content, self.mode_id()).cloned() {
+                        self.handle_tasks(&tasks);
+                    }
+                    self.keybinds.stop_listening();
+                }
+                KeyCode::Esc => self.keybinds.stop_listening(),
+                key => {
+                    self.keybinds.handle(key);
+                    return Some(IshtarMessage::Null);
+                }
+            }
         }
         None
     }
@@ -405,5 +408,8 @@ impl Widget for &mut Ishtar {
     {
         self.writer.render(area, buf);
         self.cmd.render(area, buf);
+        if self.keybinds.listening {
+            self.keybinds.render(area, buf);
+        }
     }
 }

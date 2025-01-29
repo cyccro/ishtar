@@ -1,6 +1,12 @@
 use std::collections::HashMap;
 
-use ratatui::crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::{
+    crossterm::event::{KeyCode, KeyModifiers},
+    layout::{Alignment, Rect},
+    style::{Color, Style},
+    text::{Line, Text},
+    widgets::{block::Position, Block, Borders, Padding, Paragraph, Widget},
+};
 
 use isht::ConfigStatment;
 
@@ -51,5 +57,36 @@ impl KeybindHandler {
     }
     pub fn get(&self, val: &String, mode: usize) -> Option<&Vec<ConfigStatment>> {
         self.bindings[mode].get(val)
+    }
+}
+impl Widget for &KeybindHandler {
+    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
+    where
+        Self: Sized,
+    {
+        let content = self.buffer.join("-");
+        let len: u16 = content.len() as u16 + 4;
+        let paragraph = Paragraph::new(Text::styled(
+            content,
+            Style::default().fg(Color::from_u32(0x00519cf7)),
+        ))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::White))
+                .title("Handled Key")
+                .title_style(Style::default().fg(Color::Yellow))
+                .title_alignment(Alignment::Center),
+        )
+        .alignment(ratatui::layout::Alignment::Center);
+        paragraph.render(
+            Rect {
+                width: len + 2, //16 == 12 + 4 == sizeof("Handled Keys") + 4
+                height: 3,
+                x: (area.width / 2) - len / 2,
+                y: area.height / 8,
+            },
+            buf,
+        );
     }
 }
