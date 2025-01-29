@@ -3,7 +3,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use gapbuf::GapBuffer;
 use isht::CmdTask;
 use ratatui::{
     prelude::Rect,
@@ -62,6 +61,7 @@ impl TextArea {
     pub fn enter_writing(&mut self) {
         self.mode = TextAreaMode::Writing;
     }
+    ///Gets the area bounds of this writer
     pub fn area(&self) -> Rect {
         Rect {
             x: self.position.x(),
@@ -136,55 +136,43 @@ impl TextArea {
     pub fn xoffset(&self) -> usize {
         1 + self.y.to_string().len()
     }
+    ///Gets the content of the line at the given index
     pub fn content(&self, idx: usize) -> Option<&TerminalLine> {
         self.lines.get(idx)
     }
+    ///Clears the contents of the writer
     pub fn clear_content(&mut self) {
         self.lines.clear();
+        self.lines.push(TerminalLine::new());
     }
+    ////Sets the content of the writer to be the string. Splits all its lines and set them into
+    ///each line and returns the amount of lines set
     pub fn set_content(&mut self, content: String) -> usize {
-        self.clear_content();
-        let lines = content.split('\n');
+        self.lines.clear();
         let mut idx = 0;
-        for line in lines {
+        for line in content.lines() {
             self.lines.push(TerminalLine::from_str(line));
             idx += 1;
         }
         idx
     }
+    //Gets all the visible lines on the current buffer.
     pub fn visible_lines(&mut self) -> Vec<(usize, String)> {
-        let mut vec = Vec::new();
         let h = (self.h() - 1) as usize;
         let page = self.y / h; //no need for recalc everytime
-        let bounds = {
+        let mut bounds = {
             let dif = h * page;
-            (dif, dif + h) //init and finish of the 'page'; -1 due to the last be reserved to
-                           //the file name
+            (dif, (dif + h).min(self.lines.len())) //init and finish of the 'page'; -1 due to the last be reserved to
+                                                   //the file name
         };
-        let mut idx = bounds.0;
-        if true {
-            let mut buf = String::new();
-            while idx < bounds.1 {
-                let Some(line) = self.lines.get(idx) else {
-                    break;
-                };
-                let str = line.to_string();
-                buf.push_str(&str);
-                buf.push('\n');
-                vec.push((idx, str));
-                idx += 1;
-            }
-        } else {
-            while idx < bounds.1 {
-                let Some(line) = self.lines.get(idx) else {
-                    break;
-                };
-                vec.push((idx, line.to_string()));
-                idx += 1;
-            }
+        let mut vec = Vec::with_capacity(bounds.1 - bounds.0);
+        for line in self.lines[bounds.0..bounds.1].iter() {
+            vec.push((bounds.0, line.to_string()));
+            bounds.0 += 1;
         }
         vec
     }
+    ///Writes the given char and moves the cursor
     fn move_after_insert(&mut self, c: char) {
         self.lines[self.y].insert(self.x, c);
         if c.len_utf8() > 1 {
@@ -194,6 +182,7 @@ impl TextArea {
             self.x += 1;
         }
     }
+    ///Writes the given char checking for punctuators
     pub fn write_char(&mut self, c: char) {
         if self.mode == TextAreaMode::Selecting {
             return;
@@ -218,6 +207,7 @@ impl TextArea {
             self.move_after_insert(c);
         }
     }
+    ///Removes the char at the current cursor position. Does nothing on selection mode
     pub fn backspace(&mut self) {
         if self.mode == TextAreaMode::Selecting {
             return;
@@ -238,20 +228,27 @@ impl TextArea {
             self.lines[self.y].append_line(line);
         }
     }
+    ///Removes the char forward to the current cursor position. Does nothing on selection
+    ///mode.(Simply executes the Delete key usage)
     pub fn del(&mut self) {
         if self.mode == TextAreaMode::Selecting {
             return;
         }
         if self.line().is_empty() && self.lines.len() > 1 {
             self.lines.remove(self.y);
+            self.byte_offsets.remove(self.y);
         } else if self.x == self.line().len() && self.y < self.lines.len() - 1 {
             let line = self.lines.remove(self.y + 1);
             self.lines[self.y].append_line(line);
+            self.byte_offsets[self.y] += self.byte_offsets.remove(self.y + 1);
             return;
-        } else {
-            self.lines[self.y].remove(self.x, false);
+        } else if let Some((_, size)) = self.lines[self.y].remove(self.x, false) {
+            if size > 1 {
+                self.byte_offsets[self.y] -= size;
+            }
         }
     }
+    ///Creates a new line and makes the cursor go downwards. Does nothing on selection mode
     pub fn newline(&mut self) {
         if self.mode == TextAreaMode::Selecting {
             return;
@@ -271,8 +268,10 @@ impl TextArea {
         self.y += 1;
         if self.y > self.lines.len() {
             self.lines.push(line);
+            self.byte_offsets.push(0);
         } else {
             self.lines.insert(self.y, line);
+            self.byte_offsets.insert(self.y, 0);
         }
     }
     pub fn goto_init_of_line(&mut self) {
@@ -294,7 +293,6 @@ impl TextArea {
         self.x += char_size_backwards(self.line().bytes(), self.x - 1);
         self.x = self.x.min(self.lines[self.y].len());
     }
-
     pub fn move_up(&mut self) {
         if self.y == 0 {
             self.x = 0;
@@ -337,10 +335,15 @@ impl TextArea {
         }
         self.x = self.x.min(self.lines[self.y].len());
     }
+    ///Totally resets the writer.
     pub fn reset(&mut self) {
         self.editing_file = None;
         self.lines.clear();
+        self.lines.push(TerminalLine::new());
     }
+    ///Opens the given file and set the writer content to be the file content. If the file does not
+    ///exists, still sets the editing file to be the given path and when trying to write it will
+    ///create a new file with the writer contents
     pub fn open_file(&mut self, path: PathBuf) {
         let mut fpath = std::env::current_dir().unwrap();
         fpath.push(&path);
@@ -366,7 +369,9 @@ impl TextArea {
             None
         }
     }
+    ///Close the files and clears the writer content
     pub fn close_file(&mut self) {
+        self.clear_content();
         self.editing_file = None;
     }
     pub fn file_name(&self) -> Option<&OsStr> {
@@ -376,6 +381,8 @@ impl TextArea {
             None
         }
     }
+    ///Saves into the file located as prefix + editiong_file the content of this writer. If the
+    ///file does not exist, create a file and write it.
     pub fn save(&self, prefix: &Path) -> std::io::Result<()> {
         if let Some(ref file) = self.editing_file {
             let prefixed = prefix.join(file);
@@ -384,12 +391,12 @@ impl TextArea {
             Ok(())
         }
     }
+    ///Pastes the given content at the current cursor location. If the content has multiple lines,
+    ///append insert them as well
     pub fn paste(&mut self, content: &str) -> CmdTask {
         let lines = content.split('\n').collect::<Vec<&str>>();
         if lines.len() == 1 {
-            for (idx, c) in lines[0].chars().enumerate() {
-                self.lines[self.y].insert(self.x + idx, c);
-            }
+            self.lines[self.y].push_str_back(content);
             return CmdTask::EnterModify;
         }
         for (idx, line) in content.lines().enumerate() {
@@ -433,6 +440,7 @@ impl TextArea {
         }
         CmdTask::EnterModify
     }
+    ///Copies to the clipboard(virtual or not if given) the content of the selection
     pub fn copy_selection(&mut self, clipboard: &mut IshtarClipboard, is_virtual: bool) -> CmdTask {
         if !self.is_selecting() {
             return CmdTask::EnterModify;

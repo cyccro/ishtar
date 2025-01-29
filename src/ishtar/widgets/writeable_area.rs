@@ -37,7 +37,7 @@ impl WriteableArea {
         s.create_area();
         s
     }
-    ///Gets the cursor position
+    ///Gets the cursor position based on the active text area
     pub fn cursor(&self) -> (usize, usize) {
         let current_writer = &self.writers[self.focused_writer];
         let w = if let WriteableAreaOrder::Horizontal = self.order {
@@ -65,20 +65,24 @@ impl WriteableArea {
     pub fn focus(&self) -> usize {
         self.focused_writer
     }
+    ///Focus the next text area, if vertical, goes one below, if horizontal goes one to the right
     pub fn set_focus_next(&mut self) {
         self.set_focus(self.focused_writer + 1);
     }
+    ///Focus the back text area, if vertical, goes one up, if horizontal goes one to the left
     pub fn set_focus_back(&mut self) {
         if self.focused_writer > 0 {
             self.set_focus(self.focused_writer - 1);
         }
     }
+    ///Set the focus on the are with the given index
     pub fn set_focus(&mut self, focus: usize) {
         self.focused_writer = focus.min(self.len() - 1);
     }
     pub fn current_area(&self) -> &TextArea {
         &self.writers[self.focused_writer]
     }
+    ///Writes the given char into the current area
     pub fn write_char(&mut self, c: char) {
         self.current_area_mut().write_char(c);
     }
@@ -116,10 +120,12 @@ impl WriteableArea {
             }
         }
     }
+    ///Creates a new text area and modifies the view to handle the new one
     pub fn create_area(&mut self) {
         self.writers.push(TextArea::new(0, 0, 0, 2));
         self.modify_areas();
     }
+    ///Deletes the current active area
     pub fn delete_current_area(&mut self) -> Option<TextArea> {
         if !self.writers.is_empty() {
             let data = Some(self.writers.remove(self.focused_writer));
@@ -129,6 +135,8 @@ impl WriteableArea {
             None
         }
     }
+    ///Deletes the area based on it's index, if horizontal, +idx = right, if vertical,
+    ///+idx = bottom
     pub fn delete_area(&mut self, idx: usize) -> Option<TextArea> {
         let idx = idx.min(self.len() - 1);
         if idx != 0 {

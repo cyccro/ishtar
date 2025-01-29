@@ -2,11 +2,12 @@ use core::fmt;
 use std::{
     fmt::{Debug, Display},
     ops::RangeBounds,
+    str::Chars,
 };
 
 use gapbuf::GapBuffer;
 
-use super::char_size_backwards;
+use super::{char_size_backwards, char_size_init};
 
 // A wrapper to make easier the manipulation in Ishtar Buffer Lines
 // It used to be a wrapper to VecDeque<char> but since sizeof(char) == 4 in rust, it's better
@@ -85,6 +86,7 @@ impl TerminalLine {
         }
         target
     }
+    ///Inserts the given char at the specific index asserting utf8 encoding
     pub fn insert(&mut self, idx: usize, c: char) {
         let b = &mut [0; 4];
         let buf = c.encode_utf8(b).as_bytes();
@@ -96,30 +98,31 @@ impl TerminalLine {
         self.buffer.insert_many(idx, buf.iter().cloned());
     }
     ///Removes the char at the given idx, backwards if true and returns the char removed and its
-    ///size
+    ///size. Returns none if the index is out of bounds
     pub fn remove(&mut self, idx: usize, backwards: bool) -> Option<(char, usize)> {
         if let Some(c) = self.buffer.get(idx) {
             if c.is_ascii() {
                 self.buffer.set_gap(idx);
                 Some((self.buffer.remove(idx) as char, 1))
             } else {
-                let size = char_size_backwards(&self.buffer, idx);
                 let mut byte: u32 = 0;
                 if backwards {
+                    let size = char_size_backwards(&self.buffer, idx);
                     for i in 0..size - 1 {
                         byte |= self.buffer.remove(idx - i) as u32;
                         byte <<= 8;
                     }
                     byte |= self.buffer.remove(idx - size + 1) as u32;
+                    Some((char::from_u32(byte).unwrap(), size))
                 } else {
-                    let size = size + 1;
-                    for i in 0..size - 1 {
-                        byte |= self.buffer.remove(idx + i) as u32;
+                    let size = char_size_init(*self.buffer.get(idx).unwrap()) as usize;
+                    for _ in 0..size + 1 {
+                        byte |= self.buffer.remove(idx) as u32;
                         byte <<= 8;
                     }
-                    byte |= self.buffer.remove(idx + size - 1) as u32;
+                    byte >>= 8;
+                    Some((char::from_u32(byte).unwrap(), size))
                 }
-                Some((char::from_u32(byte).unwrap(), size))
             }
         } else {
             None
@@ -137,8 +140,8 @@ impl TerminalLine {
         if self.len() + s.len() > self.capacity() {
             self.reserve_exact(s.len());
         }
-        for c in s.chars() {
-            self.push_back(c)
+        for byte in s.as_bytes() {
+            self.buffer.push_back(*byte);
         }
     }
     pub fn push_str_front(&mut self, s: &str) {

@@ -4,6 +4,8 @@ use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
 use isht::ConfigStatment;
 
+///A handler for keybinds. Starts listening when receiving a Control Key(Alt, Control, Shift, etc...) and stops when
+///receiving an Enter key
 pub struct KeybindHandler {
     pub initializer: KeyModifiers,
     pub listening: bool,
@@ -19,17 +21,7 @@ impl KeybindHandler {
             bindings,
         }
     }
-    pub fn get_from_buffer(&self, mode: usize) -> Option<&Vec<ConfigStatment>> {
-        let s = self.buffer.join("-");
-        if let Some(cfgs) = self.bindings[mode].get(&s) {
-            Some(cfgs)
-        } else {
-            None
-        }
-    }
-    pub fn is_initializer(&self, modifier: KeyModifiers) -> bool {
-        modifier == self.initializer && self.initializer != KeyModifiers::NONE
-    }
+    ///Sets the handler to start listening keys. Panics if called when already listening
     pub fn start_listening(&mut self, key: KeyCode, modifier: KeyModifiers) {
         assert!(!self.listening);
         assert!(self.initializer.is_empty());
@@ -38,11 +30,13 @@ impl KeybindHandler {
         self.buffer.push(modifier.to_string());
         self.buffer.push(key.to_string());
     }
+    ///Stops listening keys and make start_listnening usable again
     pub fn stop_listening(&mut self) {
         self.buffer.clear();
         self.initializer = KeyModifiers::NONE;
         self.listening = false;
     }
+    //Appends the given key into the keybind buffer if is listening
     pub fn handle(&mut self, key: KeyCode) {
         if self.listening {
             match key {

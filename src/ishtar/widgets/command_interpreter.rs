@@ -29,6 +29,7 @@ impl CommandInterpreter {
             },
         }
     }
+    ///Gets the current position of the cursor
     pub fn cursor(&self) -> usize {
         self.cursor
     }
@@ -46,6 +47,7 @@ impl CommandInterpreter {
             self.cursor -= 1;
         }
     }
+    ///Sets interpreter content to be the given content
     pub fn set(&mut self, content: &str) {
         self.line.clear();
         self.line.push_str_back(content);
@@ -59,6 +61,8 @@ impl CommandInterpreter {
             _ => None,
         }
     }
+    ///Writes the char into the interpreter and checks if the the written key is defined as
+    ///shortcut, if so returns its task
     pub fn write(&mut self, c: char) -> Option<CmdResponse> {
         if self.is_empty() {
             if let Some(e) = self.check_for_unique(c) {
@@ -78,16 +82,19 @@ impl CommandInterpreter {
         }
         self.line.remove(self.cursor, true);
     }
+    //Clears the interpreter content
     pub fn clear(&mut self) {
         self.line.clear();
         self.cursor = 0;
     }
-    pub fn execute_cmd(&mut self, cmd: &String) -> Option<CmdResponse> {
+    //Executes the given command
+    pub fn execute_cmd(&mut self, cmd: &str) -> Option<CmdResponse> {
         if let Some(builtin) = self.builtins.get(cmd) {
             return Some(builtin.clone());
         }
         todo!();
     }
+    ///Executes the command that was written into the interpreter
     pub fn execute(&mut self) -> Option<CmdResponse> {
         if let Some(builtin) = self.builtins.get(&self.line.to_string()) {
             return Some(builtin.clone());
@@ -134,7 +141,7 @@ impl CommandInterpreter {
 }
 impl std::fmt::Display for CommandInterpreter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.line.to_string())
+        write!(f, "{}", self.line)
     }
 }
 impl Widget for &CommandInterpreter {

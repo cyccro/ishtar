@@ -9,6 +9,8 @@ pub struct IshtarConfiguration {
 }
 
 impl IshtarConfiguration {
+    ///Sets a configuration based in the given content string. It's supposed to be a valid Isht
+    ///content
     pub fn from_content(content: String) -> Result<Self> {
         let statments = parse_content(content)?;
         let ConfigStatment::Block(contents) = statments else {

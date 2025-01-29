@@ -67,18 +67,17 @@ impl Default for Ishtar {
     }
 }
 impl Ishtar {
+    ///Gets the configurations based on the given CONFIG_PATH flag used to building. If not given,
+    ///throws
     pub fn get_configs() -> IshtarConfiguration {
         let path_location = env::var("CONFIG_PATH").expect(
             "Must set CONFIG_PATH during compilation time. Try CONFIG_PATH=<path> cargo build --release",
         );
         let file_path = std::path::Path::new(&path_location);
-        if file_path.exists() {
-            let content = std::fs::read_to_string(file_path).unwrap();
-            IshtarConfiguration::from_content(content).unwrap() //parses the file and creates a configutation
-        } else {
-            println!("The path for configuration does not exists. Using default instead");
-            IshtarConfiguration::default()
-        }
+        let content = std::fs::read_to_string(file_path).expect(
+            "Error during reading file content; check if the file dir was written correctly",
+        );
+        IshtarConfiguration::from_content(content).unwrap() //parses the file and creates a configutation
     }
     pub fn new() -> Self {
         Default::default()
@@ -117,6 +116,7 @@ impl Ishtar {
         self.cursor.0 = x;
         self.cursor.1 = y;
     }
+    ///Gets the x position of the cursor
     fn x_cursor_position(&self) -> u16 {
         (self.cursor.0
             + match self.mode {
@@ -127,6 +127,7 @@ impl Ishtar {
     fn cursor_position(&self) -> Position {
         Position::new(self.x_cursor_position(), self.cursor.1 as u16)
     }
+    ///Updates the cursor position to be on the current writing area
     pub fn update_cursor(&mut self) {
         match self.mode {
             IshtarMode::Cmd => {
@@ -158,6 +159,7 @@ impl Ishtar {
         }
         self.mode = mode;
     }
+    ///Saves the content of the current area at current_path + current_area_file
     pub fn save_file(&self) -> std::io::Result<()> {
         self.writer.save(&self.current_path)?;
         Ok(())
