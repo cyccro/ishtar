@@ -14,10 +14,10 @@ pub struct IshtarConfiguration {
 impl IshtarConfiguration {
     ///Generates data into the target based on the keybind group
     pub fn generate_from_keybinds_group(
-        data: &Box<ConfigStatment>,
+        data: &ConfigStatment,
         target: &mut [Keybinds; 3],
     ) -> Result<()> {
-        let ConfigStatment::Block(contents) = &**data else {
+        let ConfigStatment::Block(contents) = &data else {
             unreachable!();
         };
         for content in contents {
@@ -28,7 +28,7 @@ impl IshtarConfiguration {
                 "normal" => &mut target[0],
                 "modify" => &mut target[1],
                 "selection" => &mut target[2],
-                _ => return Err(ConfigurationError::NotRecognizedName(name.clone()).into()),
+                _ => return Err(ConfigurationError::NotRecognizedKeybindMode(name.clone()).into()),
             };
             let ConfigStatment::Block(data) = &**data else {
                 return Err(ConfigurationError::ExpectedTasksBlock.into());
@@ -63,8 +63,12 @@ impl IshtarConfiguration {
                 ConfigStatment::Group { name, data } => {
                     let nameref = name.as_ref();
                     match nameref {
-                        "keybinds" => Self::generate_from_keybinds_group(&data, &mut this.keybinds)
-                        _ => panic!("Ishtar does not handle data for '{name}' group"),
+                        "keybinds" => {
+                            Self::generate_from_keybinds_group(&data, &mut this.keybinds)?
+                        }
+                        _ => {
+                            return Err(ConfigurationError::NotRecognizedGroup(name.clone()).into())
+                        }
                     }
                 }
                 _ => unreachable!(),

@@ -1,4 +1,3 @@
-mod configuration;
 mod enums;
 mod logger;
 mod widgets;
@@ -9,7 +8,7 @@ use std::{
     process::ExitStatus,
 };
 
-use isht::{CmdTask, ConfigStatment, IshtParseError, IshtarConfiguration};
+use isht::{configuration::IshtarConfiguration, CmdTask, ConfigStatment};
 use logger::IshtarLogger;
 use widgets::{clipboard::IshtarClipboard, keybind_handler::KeybindHandler};
 
