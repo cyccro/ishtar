@@ -1,10 +1,13 @@
 use std::{
+    collections::HashMap,
     ffi::OsStr,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use isht::CmdTask;
 use ratatui::{
+    buffer::Buffer,
     prelude::Rect,
     style::{Color, Style},
     text::{Line, Span},
@@ -131,6 +134,12 @@ impl TextArea {
     }
     pub fn h(&self) -> u16 {
         self.size.y()
+    }
+    pub fn set_cursor_x(&mut self, x: usize) {
+        self.x = x.min(self.line().len());
+    }
+    pub fn set_cursor_y(&mut self, y: usize) {
+        self.y = y.min(self.lines.len() - 1);
     }
     ///Gets X offset from the left due to line number
     pub fn xoffset(&self) -> usize {
@@ -289,9 +298,18 @@ impl TextArea {
         self.x = self.lines[self.y].len();
     }
     pub fn move_down(&mut self) {
-        self.y = (self.y + 1).min(self.lines.len() - 1);
-        self.x += char_size_backwards(self.line().bytes(), self.x - 1);
-        self.x = self.x.min(self.lines[self.y].len());
+        if self.y == self.lines.len() - 1 {
+            self.x = self.lines[self.y].len().saturating_sub(1);
+            return;
+        }
+        let line = &self.lines[self.y];
+        self.y += 1;
+        if line.is_empty() {
+            self.x = 0;
+        } else {
+            self.x += char_size_backwards(line.bytes(), self.x.min(line.len()).saturating_sub(1));
+            self.x = self.x.min(line.len());
+        }
     }
     pub fn move_up(&mut self) {
         if self.y == 0 {
@@ -299,8 +317,13 @@ impl TextArea {
             return;
         }
         self.y -= 1;
-        self.x += char_size_backwards(self.line().bytes(), self.x - 1);
-        self.x = self.x.min(self.lines[self.y].len());
+        let line = &self.lines[self.y];
+        if line.is_empty() {
+            self.x = 0;
+        } else {
+            self.x += char_size_backwards(line.bytes(), self.x.min(line.len()).saturating_sub(1));
+            self.x = self.x.min(line.len());
+        }
     }
     pub fn move_left(&mut self) {
         if self.x == 0 {
@@ -503,28 +526,13 @@ impl TextArea {
     pub fn is_selecting(&self) -> bool {
         matches!(self.mode, TextAreaMode::Selecting)
     }
-}
-impl std::fmt::Display for TextArea {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buffer = String::new();
-        for line in &self.lines {
-            buffer.push_str(&line.to_string());
-            buffer.push('\n')
-        }
-        buffer.pop();
-        write!(f, "{buffer}")
-    }
-}
-impl Widget for &mut TextArea {
-    fn render(self, _: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
+    pub fn render_colored(&mut self, colors: &Arc<HashMap<String, u32>>, buf: &mut Buffer) {
         let w = self.size.x() as usize;
         let lines: Vec<Line> = if self.is_selecting() {
             self.visible_lines()
                 .into_iter()
                 .map(|(idx, content)| {
+                    let select_bg = (**colors).get("select_bg").cloned().unwrap_or(0xff0000);
                     let sidx = idx.to_string();
                     let pos = w - sidx.len() - 1;
                     if self.is_in_selection_bounds(idx) {
@@ -537,21 +545,31 @@ impl Widget for &mut TextArea {
                             .to_string();
                             Line::from(vec![
                                 Span::from(format!("{sidx} ")),
-                                Span::styled(line_content, Style::default().bg(Color::Red)),
+                                Span::styled(
+                                    line_content,
+                                    Style::default().bg(Color::from_u32(select_bg)),
+                                ),
                             ])
+                        } else if content.is_empty() {
+                            Line::from(vec![sidx.into(), "".into()])
                         } else {
-                            let (min, max) = min_max(self.selection_cursor.x() as usize, self.x);
-                            let min = min.min(self.lines[self.y].len().saturating_sub(1));
-                            let max = max.min(self.lines[self.y].len().saturating_sub(1));
-                            let begin = Span::from(content[..min].to_string());
-                            let selected = Span::styled(
-                                content[min..max].to_string(),
-                                Style::default().bg(Color::Red),
+                            let (min, max) = min_max(
+                                (self.selection_cursor.x() as usize).saturating_sub(1),
+                                self.x.saturating_sub(1),
                             );
-                            let finish = if self.x > pos {
-                                Span::from(content[max - 1..].to_string())
+                            let begin = Span::from(
+                                content[..=min.min(self.lines[idx].len() - 1)].to_string(),
+                            );
+                            let selected = Span::styled(
+                                content[min.saturating_sub(1)
+                                    ..max.min(self.line().len().saturating_sub(1))]
+                                    .to_string(),
+                                Style::default().bg(Color::from_u32(select_bg)),
+                            );
+                            let finish = if self.y == idx {
+                                Span::from(content[(max + 1).min(self.line().len())..].to_string())
                             } else {
-                                Span::from(content[max..].to_string())
+                                Span::from(content[max + 1..].to_string())
                             };
                             Line::from(vec![sidx.into(), " ".into(), begin, selected, finish])
                         }
@@ -603,5 +621,23 @@ impl Widget for &mut TextArea {
             },
             buf,
         )
+    }
+}
+impl std::fmt::Display for TextArea {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut buffer = String::new();
+        for line in &self.lines {
+            buffer.push_str(&line.to_string());
+            buffer.push('\n')
+        }
+        buffer.pop();
+        write!(f, "{buffer}")
+    }
+}
+impl Widget for &mut TextArea {
+    fn render(self, _: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
+    where
+        Self: Sized,
+    {
     }
 }

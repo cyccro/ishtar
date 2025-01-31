@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     layout::{Alignment, Rect},
     style::{Color, Style},
-    text::{Line, Text},
-    widgets::{block::Position, Block, Borders, Padding, Paragraph, Widget},
+    text::Text,
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 
 use isht::ConfigStatment;
@@ -17,14 +17,19 @@ pub struct KeybindHandler {
     pub listening: bool,
     pub buffer: Vec<String>,
     bindings: [HashMap<String, Vec<ConfigStatment>>; 3],
+    colors: Arc<HashMap<String, u32>>,
 }
 impl KeybindHandler {
-    pub fn new(bindings: [HashMap<String, Vec<ConfigStatment>>; 3]) -> Self {
+    pub fn new(
+        bindings: [HashMap<String, Vec<ConfigStatment>>; 3],
+        colors: Arc<HashMap<String, u32>>,
+    ) -> Self {
         Self {
             initializer: KeyModifiers::NONE,
             listening: false,
             buffer: Vec::new(),
             bindings,
+            colors,
         }
     }
     ///Sets the handler to start listening keys. Panics if called when already listening

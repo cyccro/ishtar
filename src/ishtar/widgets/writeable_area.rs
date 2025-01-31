@@ -1,4 +1,8 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 use ratatui::{prelude::Rect, widgets::Widget};
 
@@ -14,25 +18,28 @@ pub struct WriteableArea {
     order: WriteableAreaOrder,
     focused_writer: usize,
     area: (u16, u16),
+    colors: Arc<HashMap<String, u32>>,
 }
 
 impl WriteableArea {
-    pub fn new_horizontal(w: u16, h: u16) -> Self {
+    pub fn new_horizontal(w: u16, h: u16, colors: Arc<HashMap<String, u32>>) -> Self {
         let mut s = Self {
             writers: Vec::new(),
             order: WriteableAreaOrder::Horizontal,
             focused_writer: 0,
             area: (w, h),
+            colors,
         };
         s.create_area();
         s
     }
-    pub fn new_vertical(w: u16, h: u16) -> Self {
+    pub fn new_vertical(w: u16, h: u16, colors: Arc<HashMap<String, u32>>) -> Self {
         let mut s = Self {
             writers: Vec::new(),
             order: WriteableAreaOrder::Vertical,
             focused_writer: 0,
             area: (w, h),
+            colors,
         };
         s.create_area();
         s
@@ -166,7 +173,7 @@ impl Widget for &mut WriteableArea {
         Self: Sized,
     {
         for writer in &mut self.writers {
-            writer.render(area, buf);
+            writer.render_colored(&self.colors, buf);
         }
     }
 }

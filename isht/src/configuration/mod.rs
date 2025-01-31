@@ -9,15 +9,45 @@ type Keybinds = HashMap<String, Vec<ConfigStatment>>;
 #[derive(Debug)]
 pub struct IshtarConfiguration {
     pub keybinds: [Keybinds; 3], //normal, modify, selection
+    pub colors: HashMap<String, u32>,
 }
 
 impl IshtarConfiguration {
+    pub fn generate_from_colors_group(
+        data: &ConfigStatment,
+        target: &mut HashMap<String, u32>,
+    ) -> Result<()> {
+        let ConfigStatment::Block(contents) = data else {
+            unreachable!();
+        };
+        for content in contents {
+            let ConfigStatment::SubGroup { data, .. } = content else {
+                unreachable!();
+            };
+            let ConfigStatment::Block(targets) = &**data else {
+                return Err(ConfigurationError::ExpectedTasksBlock.into());
+            };
+            for color_target in targets.iter() {
+                match color_target {
+                    ConfigStatment::CmdDecl { lhs, rhs } => {
+                        if let ConfigStatment::Color(n) = &**rhs {
+                            target.insert(lhs.clone(), *n);
+                        } else {
+                            return Err(ConfigurationError::InvalidStatment((**rhs).clone()).into());
+                        }
+                    }
+                    e => return Err(ConfigurationError::InvalidStatment(e.clone()).into()),
+                }
+            }
+        }
+        Ok(())
+    }
     ///Generates data into the target based on the keybind group
     pub fn generate_from_keybinds_group(
         data: &ConfigStatment,
         target: &mut [Keybinds; 3],
     ) -> Result<()> {
-        let ConfigStatment::Block(contents) = &data else {
+        let ConfigStatment::Block(contents) = data else {
             unreachable!();
         };
         for content in contents {
@@ -66,6 +96,7 @@ impl IshtarConfiguration {
                         "keybinds" => {
                             Self::generate_from_keybinds_group(&data, &mut this.keybinds)?
                         }
+                        "colors" => Self::generate_from_colors_group(&data, &mut this.colors)?,
                         _ => {
                             return Err(ConfigurationError::NotRecognizedGroup(name.clone()).into())
                         }
@@ -79,6 +110,7 @@ impl IshtarConfiguration {
     pub fn new() -> Self {
         Self {
             keybinds: [HashMap::new(), HashMap::new(), HashMap::new()],
+            colors: HashMap::new(),
         }
     }
 }

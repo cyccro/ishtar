@@ -15,7 +15,7 @@ use widgets::{clipboard::IshtarClipboard, keybind_handler::KeybindHandler};
 use crate::helpers::terminal_size;
 use ratatui::{
     crossterm::{
-        event::{self, KeyCode, KeyEvent},
+        event::{self, KeyCode, KeyEvent, KeyModifiers},
         terminal::{disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
         ExecutableCommand,
     },
@@ -33,7 +33,6 @@ use self::{
 pub struct Ishtar {
     current_path: PathBuf,
     exit: bool,
-    initialized: bool,
     writer: WriteableArea,
     logger_area: IshtarLogger,
     cursor: (usize, usize),
@@ -48,25 +47,26 @@ impl Default for Ishtar {
     fn default() -> Self {
         let size = terminal_size();
         let configs = Self::get_configs();
+        let colors = std::sync::Arc::new(configs.colors);
         Self {
             current_path: env::current_dir().unwrap(),
             exit: false,
-            initialized: true,
             cursor: (0, size.1 as usize),
             saved_cursor: (0, size.1 as usize),
-            cmd: CommandInterpreter::new(),
+            cmd: CommandInterpreter::new(colors.clone()),
             size,
-            writer: WriteableArea::new_vertical(size.0, size.1 - 1),
+            writer: WriteableArea::new_vertical(size.0, size.1 - 1, colors.clone()),
             logger_area: IshtarLogger::new().unwrap(),
             clipboard: IshtarClipboard::new(),
             mode: IshtarMode::Cmd,
-            keybinds: KeybindHandler::new(configs.keybinds),
+            keybinds: KeybindHandler::new(configs.keybinds, colors),
         }
     }
 }
 impl Ishtar {
-    ///Gets the configurations based on the given CONFIG_PATH flag used to building. If not given,
-    ///throws
+    ///Gets the configurations based on the configuration file located as
+    ///~/.config/ishtar/config.isht. If not given,
+    ///uses default.
     pub fn get_configs() -> IshtarConfiguration {
         let username = std::env::var("USER").unwrap();
         let path = format!("/home/{username}/.config/ishtar/config.isht");
@@ -149,6 +149,8 @@ impl Ishtar {
             IshtarMode::Modify => {
                 self.cmd.set("Modifying");
                 self.writer.enter_writing();
+                self.writer.set_cursor_x(self.saved_cursor.0);
+                self.writer.set_cursor_y(self.saved_cursor.1);
             }
             IshtarMode::Cmd => self.cmd.clear(),
             IshtarMode::Selection => {
@@ -190,8 +192,7 @@ impl Ishtar {
         }
     }
     pub fn save_position(&mut self) {
-        self.saved_cursor.0 = self.x_cursor_position() as usize;
-        self.saved_cursor.1 = self.cursor.1;
+        self.saved_cursor = self.writer.cursor();
     }
     pub fn exec_cmd(&mut self, cmd: &String) -> std::io::Result<ExitStatus> {
         std::process::Command::new(cmd)
@@ -314,6 +315,18 @@ impl Ishtar {
         None
     }
     fn handle_key(&mut self, key: KeyEvent) -> std::io::Result<IshtarMessage> {
+        if let KeyCode::Char(c) = key.code {
+            if c.is_uppercase()
+                && key.modifiers == KeyModifiers::SHIFT
+                && matches!(self.mode, IshtarMode::Modify)
+            {
+                let line = self.writer.line().clone();
+                let gap = line.bytes().gap();
+                self.display(format!("{c} {gap} {line}",), logger::LogLevel::Info);
+                self.writer.write_char(c);
+                return Ok(IshtarMessage::Null);
+            }
+        }
         if let Some(msg) = self.handle_keybind(key) {
             return Ok(msg);
         }
@@ -360,9 +373,7 @@ impl Ishtar {
                     KeyCode::End => self.writer.goto_end_of_line(),
                     KeyCode::Home => self.writer.goto_init_of_line(),
 
-                    _ => {
-                        self.initialized = false;
-                    }
+                    _ => {}
                 }
                 self.cursor = self.writer.cursor();
             }

@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use crate::lexer::ConfigToken;
 
 #[derive(Debug)]
@@ -8,7 +10,8 @@ pub enum IshtParseError {
     MissingNumParameter,
     InvalidTokenPosition(ConfigToken),
     ExpectingEq,
-    BlockExpected,
+    BlockExpected(ConfigToken),
+    InvalidHex(ParseIntError),
     ReachedEOF,
 }
 impl std::error::Error for IshtParseError {}
@@ -26,7 +29,11 @@ impl std::fmt::Display for IshtParseError {
                 f,
                 "Expected an '=' for matching <Identifier> = <Tasks> rule"
             ),
-            Self::BlockExpected => write!(f, "Expected a block statment"),
+            Self::InvalidHex(e) => write!(
+                f,
+                "Invalid Hex value found:\n{e}\nFollow the pattern: 0xRRGGBB"
+            ),
+            Self::BlockExpected(tk) => write!(f, "Expected a block statment, instead got {tk:?}"),
             Self::ReachedEOF => write!(f, "Reached EOF"),
         }
     }

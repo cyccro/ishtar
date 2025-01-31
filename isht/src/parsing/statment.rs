@@ -16,5 +16,6 @@ pub enum ConfigStatment {
     },
     Block(Vec<ConfigStatment>),
     Task(CmdTask),
+    Color(u32),
     Cmd(String),
 }

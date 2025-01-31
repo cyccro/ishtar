@@ -35,17 +35,24 @@ pub fn lex_content(content: String) -> VecDeque<ConfigToken> {
                     }
                     tokens.push_back(ConfigToken::String(buf));
                 }
-                '0'..='9' => {
+                _ if c.is_ascii_digit() => {
                     let mut buf = String::new();
+                    let mut flag = false;
                     while let Some(c) = chars.get(idx) {
-                        if c.is_ascii_digit() {
+                        if c.is_ascii_hexdigit() || *c == 'x' {
                             buf.push(*c);
+                            idx += 1;
+                            if !c.is_ascii_digit() || *c == 'x' {
+                                flag = true;
+                            }
                         } else {
                             break;
                         }
-                        idx -= 1;
-                        tokens.push_back(ConfigToken::Num(buf.parse::<u32>().unwrap()))
                     }
+                    idx -= 1;
+                    tokens.push_back(ConfigToken::Num(
+                        u32::from_str_radix(&buf[2..], if flag { 16 } else { 10 }).unwrap(),
+                    ))
                 }
                 '-' => {
                     idx += 1;

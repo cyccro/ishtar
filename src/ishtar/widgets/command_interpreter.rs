@@ -1,4 +1,4 @@
-use std::{collections::HashMap, process::Command};
+use std::{collections::HashMap, process::Command, sync::Arc};
 
 use ratatui::{layout::Rect, text::ToLine, widgets::Widget};
 
@@ -10,14 +10,10 @@ pub struct CommandInterpreter {
     line: TerminalLine,
     cursor: usize,
     builtins: HashMap<String, CmdResponse>,
-}
-impl Default for CommandInterpreter {
-    fn default() -> Self {
-        Self::new()
-    }
+    colors: Arc<HashMap<String, u32>>,
 }
 impl CommandInterpreter {
-    pub fn new() -> Self {
+    pub fn new(colors: Arc<HashMap<String, u32>>) -> Self {
         Self {
             line: TerminalLine::new(),
             cursor: 0,
@@ -27,6 +23,7 @@ impl CommandInterpreter {
                 builtins.insert(":r".into(), CmdResponse::Reset);
                 builtins
             },
+            colors,
         }
     }
     ///Gets the current position of the cursor

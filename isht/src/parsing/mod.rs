@@ -19,7 +19,7 @@ fn parse_block(tokens: &mut VecDeque<ConfigToken>) -> Result<ConfigStatment> {
         match tokens.pop_front() {
             Some(ConfigToken::Identifier(s)) => {
                 let task = match s.as_ref() {
-                    "ExecCmd" | "ExecPrompt" | "Write" => {
+                    "ExecCmd" | "ExecPrompt" | "Write" | "Color" => {
                         if !matches!(tokens.pop_front(), Some(ConfigToken::Arrow)) {
                             return Err(IshtParseError::ExpectingArrow(s).into());
                         };
@@ -30,6 +30,12 @@ fn parse_block(tokens: &mut VecDeque<ConfigToken>) -> Result<ConfigStatment> {
                             "ExecCmd" => CmdTask::ExecCmd(content),
                             "ExecPrompt" => CmdTask::ExecutePrompt(content),
                             "Write" => CmdTask::Write(content),
+                            "Color" => {
+                                return Ok(ConfigStatment::Color(
+                                    u32::from_str_radix(&content, 16)
+                                        .map_err(IshtParseError::InvalidHex)?,
+                                ))
+                            }
                             _ => unreachable!(),
                         };
                         ConfigStatment::Task(task)
@@ -61,11 +67,7 @@ fn parse_block(tokens: &mut VecDeque<ConfigToken>) -> Result<ConfigStatment> {
             Some(ConfigToken::Task(task)) => block.push(ConfigStatment::Task(task)),
             Some(ConfigToken::OpenBrace) => block.push(parse_block(tokens)?),
             None => return Err(IshtParseError::ReachedEOF.into()),
-            t => {
-                return Err(
-                    IshtParseError::InvalidTokenPosition(t.unwrap_or(ConfigToken::Arrow)).into(),
-                )
-            }
+            t => return Err(IshtParseError::InvalidTokenPosition(t.unwrap()).into()),
         }
     }
     Ok(ConfigStatment::Block(block))
@@ -93,16 +95,28 @@ fn parse_subgroup(
             let Some(ConfigToken::Identifier(tk)) = tokens.pop_front() else {
                 unreachable!();
             };
+            dbg!(&tk);
             if matches!(
                 tk.as_ref(),
-                "ExecCmd" | "ExecPrompt" | "MoveToLine" | "MoveToRow" | "Write"
+                "ExecCmd" | "ExecPrompt" | "MoveToLine" | "MoveToRow" | "Write" | "Color"
             ) {
                 return Err(IshtParseError::WrongUseofReserved.into());
             }
-            if let Some(ConfigToken::Eq) = tokens.pop_front() {
+            if let Some(ConfigToken::Eq) = tokens.front() {
+                tokens.pop_front();
                 let rhs = match tokens.pop_front() {
                     Some(ConfigToken::OpenBrace) => parse_block(tokens)?,
                     Some(ConfigToken::Identifier(s)) => match s.as_ref() {
+                        "Color" => {
+                            if !matches!(tokens.pop_front(), Some(ConfigToken::Arrow)) {
+                                return Err(IshtParseError::ExpectingArrow(s).into());
+                            }
+                            dbg!(tokens.front());
+                            let Some(ConfigToken::Num(num)) = tokens.pop_front() else {
+                                return Err(IshtParseError::MissingNumParameter.into());
+                            };
+                            ConfigStatment::Color(num)
+                        }
                         "ExecCmd" | "ExecPrompt" | "Write" => {
                             if !matches!(tokens.pop_front(), Some(ConfigToken::Arrow)) {
                                 return Err(IshtParseError::ExpectingArrow(s).into());
@@ -141,13 +155,8 @@ fn parse_subgroup(
                         }
                     },
                     Some(ConfigToken::Task(t)) => ConfigStatment::Task(t),
-                    None => panic!("Reached EOF"),
-                    t => {
-                        return Err(IshtParseError::InvalidTokenPosition(
-                            t.unwrap_or(ConfigToken::Arrow),
-                        )
-                        .into())
-                    }
+                    None => return Err(IshtParseError::ReachedEOF.into()),
+                    t => return Err(IshtParseError::InvalidTokenPosition(t.unwrap()).into()),
                 };
                 data.push(ConfigStatment::CmdDecl {
                     lhs: tk,
@@ -157,7 +166,6 @@ fn parse_subgroup(
                 return Err(IshtParseError::ExpectingEq.into());
             }
         } else {
-            //arrow is used as default if not encountered any more tokens
             return Err(if tokens.is_empty() {
                 IshtParseError::ReachedEOF.into()
             } else {
@@ -175,7 +183,10 @@ fn parse_group(token: ConfigToken, tokens: &mut VecDeque<ConfigToken>) -> Result
         unreachable!();
     };
     let mut subgroups = Vec::new();
-    while let Some(ConfigToken::SubGroup(subgroup)) = tokens.pop_front() {
+    while let Some(ConfigToken::SubGroup(_)) = tokens.front() {
+        let Some(ConfigToken::SubGroup(subgroup)) = tokens.pop_front() else {
+            unreachable!();
+        };
         subgroups.push(parse_subgroup(subgroup, tokens)?);
     }
     Ok(ConfigStatment::Group {
@@ -187,7 +198,7 @@ fn parse_tokens(mut tokens: VecDeque<ConfigToken>) -> Result<ConfigStatment> {
     let mut statments = Vec::new();
     while let Some(token) = tokens.pop_front() {
         if !matches!(token, ConfigToken::Group(_)) {
-            return Err(IshtParseError::BlockExpected.into());
+            return Err(IshtParseError::BlockExpected(token).into());
         }
         statments.push(parse_group(token, &mut tokens)?);
     }
@@ -195,5 +206,7 @@ fn parse_tokens(mut tokens: VecDeque<ConfigToken>) -> Result<ConfigStatment> {
 }
 pub fn parse_content(content: String) -> Result<ConfigStatment> {
     let tokens = lex_content(content);
-    parse_tokens(tokens)
+    let ast = parse_tokens(tokens);
+    dbg!(&ast);
+    ast
 }
