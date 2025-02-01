@@ -124,7 +124,7 @@ impl TextArea {
     pub fn x(&self) -> usize {
         self.x
     }
-    ///Gets the X position of the cursor without checking bounds
+    ///Gets the Y position of the cursor without checking bounds
     #[inline]
     pub fn y(&self) -> usize {
         self.y
@@ -302,13 +302,13 @@ impl TextArea {
             self.x = self.lines[self.y].len().saturating_sub(1);
             return;
         }
-        let line = &self.lines[self.y];
         self.y += 1;
+        let line = &self.lines[self.y];
         if line.is_empty() {
             self.x = 0;
         } else {
             self.x += char_size_backwards(line.bytes(), self.x.min(line.len()).saturating_sub(1));
-            self.x = self.x.min(line.len());
+            self.x = self.x.min(line.len() - 1);
         }
     }
     pub fn move_up(&mut self) {
@@ -528,6 +528,7 @@ impl TextArea {
     }
     pub fn render_colored(&mut self, colors: &Arc<HashMap<String, u32>>, buf: &mut Buffer) {
         let w = self.size.x() as usize;
+        let fg = (**colors).get("text_fg").cloned().unwrap_or(0xffffff);
         let lines: Vec<Line> = if self.is_selecting() {
             self.visible_lines()
                 .into_iter()
@@ -535,6 +536,9 @@ impl TextArea {
                     let select_bg = (**colors).get("select_bg").cloned().unwrap_or(0xff0000);
                     let sidx = idx.to_string();
                     let pos = w - sidx.len() - 1;
+                    let style = Style::default()
+                        .bg(Color::from_u32(select_bg))
+                        .fg(Color::from_u32(fg));
                     if self.is_in_selection_bounds(idx) {
                         if idx != self.y {
                             let line_content = if self.x > pos {
@@ -543,16 +547,11 @@ impl TextArea {
                                 &content
                             }
                             .to_string();
-                            Line::from(vec![
-                                Span::from(format!("{sidx} ")),
-                                Span::styled(
-                                    line_content,
-                                    Style::default().bg(Color::from_u32(select_bg)),
-                                ),
-                            ])
+                            Line::from(vec![Span::styled(format!("{sidx} {line_content}"), style)])
                         } else if content.is_empty() {
                             Line::from(vec![sidx.into(), "".into()])
                         } else {
+                            let linelen = self.line().len();
                             let (min, max) = min_max(
                                 (self.selection_cursor.x() as usize).saturating_sub(1),
                                 self.x.saturating_sub(1),
@@ -561,28 +560,30 @@ impl TextArea {
                                 content[..=min.min(self.lines[idx].len() - 1)].to_string(),
                             );
                             let selected = Span::styled(
-                                content[min.saturating_sub(1)
-                                    ..max.min(self.line().len().saturating_sub(1))]
+                                content[min.saturating_sub(1)..max.min(linelen.saturating_sub(1))]
                                     .to_string(),
-                                Style::default().bg(Color::from_u32(select_bg)),
+                                style,
                             );
                             let finish = if self.y == idx {
-                                Span::from(content[(max + 1).min(self.line().len())..].to_string())
+                                Span::from(content[(max + 1).min(linelen)..].to_string())
                             } else {
                                 Span::from(content[max + 1..].to_string())
                             };
                             Line::from(vec![sidx.into(), " ".into(), begin, selected, finish])
+                                .style(Style::default().fg(Color::from_u32(fg)))
                         }
                     } else {
-                        format!(
-                            "{sidx} {}",
-                            if self.x > pos {
-                                &content[self.x - 1..]
-                            } else {
-                                &content
-                            }
+                        Line::styled(
+                            format!(
+                                "{sidx} {}",
+                                if self.x > pos {
+                                    &content[self.x - 1..]
+                                } else {
+                                    &content
+                                }
+                            ),
+                            Style::default().fg(Color::from_u32(fg)),
                         )
-                        .into()
                     }
                 })
                 .collect()
@@ -593,15 +594,17 @@ impl TextArea {
                     let sidx = idx.to_string();
                     let pos = w - sidx.len() - 1;
 
-                    format!(
-                        "{sidx} {}",
-                        if self.x > pos {
-                            &content[self.x - 1..]
-                        } else {
-                            content
-                        }
+                    Line::styled(
+                        format!(
+                            "{sidx} {}",
+                            if self.x > pos {
+                                &content[self.x - 1..]
+                            } else {
+                                content
+                            }
+                        ),
+                        Style::default().fg(Color::from_u32(fg)),
                     )
-                    .into()
                 })
                 .collect()
         };
@@ -612,7 +615,10 @@ impl TextArea {
             "Not a File".into()
         };
         let len = file_name.width();
-        Paragraph::new(file_name).render(
+        Paragraph::new(file_name.style(Style::default().fg(Color::from_u32(
+            (**colors).get("file_name_color").cloned().unwrap_or(fg),
+        ))))
+        .render(
             Rect {
                 width: len as u16,
                 x: self.posx(),
@@ -632,12 +638,5 @@ impl std::fmt::Display for TextArea {
         }
         buffer.pop();
         write!(f, "{buffer}")
-    }
-}
-impl Widget for &mut TextArea {
-    fn render(self, _: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
     }
 }

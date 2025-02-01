@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
@@ -69,18 +69,31 @@ impl Widget for &KeybindHandler {
     where
         Self: Sized,
     {
+        let colors = self.colors.deref();
+        let title_color = colors
+            .get("handled_keys_title")
+            .cloned()
+            .unwrap_or(0xffffff);
+        let keys_color = colors
+            .get("handled_keys_color")
+            .cloned()
+            .unwrap_or(0xffffff);
+        let border_color = colors
+            .get("handled_keys_border")
+            .cloned()
+            .unwrap_or(0xffffff);
         let content = self.buffer.join("-");
         let len: u16 = content.len() as u16 + 4;
         let paragraph = Paragraph::new(Text::styled(
             content,
-            Style::default().fg(Color::from_u32(0x00519cf7)),
+            Style::default().fg(Color::from_u32(keys_color)),
         ))
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::White))
+                .border_style(Style::default().fg(Color::from_u32(border_color)))
                 .title("Handled Key")
-                .title_style(Style::default().fg(Color::Yellow))
+                .title_style(Style::default().fg(Color::from_u32(title_color)))
                 .title_alignment(Alignment::Center),
         )
         .alignment(ratatui::layout::Alignment::Center);

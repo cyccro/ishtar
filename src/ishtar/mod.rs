@@ -165,7 +165,8 @@ impl Ishtar {
         self.writer.save(&self.current_path)?;
         Ok(())
     }
-    pub fn handle_message(&mut self, msg: IshtarMessage) -> std::io::Result<()> {
+    ///Gotta change this later to handle CmdTask
+    fn handle_message(&mut self, msg: IshtarMessage) -> std::io::Result<()> {
         match msg {
             IshtarMessage::Cmd(response) => match response {
                 CmdResponse::Exit => {
@@ -314,16 +315,21 @@ impl Ishtar {
         }
         None
     }
+    fn write_char(&mut self, c: char) {
+        let idx = self.writer.y();
+        self.display(
+            format!("Wrote char '{c}' at line {idx}"),
+            logger::LogLevel::Info,
+        );
+        self.writer.write_char(c);
+    }
     fn handle_key(&mut self, key: KeyEvent) -> std::io::Result<IshtarMessage> {
         if let KeyCode::Char(c) = key.code {
             if c.is_uppercase()
                 && key.modifiers == KeyModifiers::SHIFT
                 && matches!(self.mode, IshtarMode::Modify)
             {
-                let line = self.writer.line().clone();
-                let gap = line.bytes().gap();
-                self.display(format!("{c} {gap} {line}",), logger::LogLevel::Info);
-                self.writer.write_char(c);
+                self.write_char(c);
                 return Ok(IshtarMessage::Null);
             }
         }

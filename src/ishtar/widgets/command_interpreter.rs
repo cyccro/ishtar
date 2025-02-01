@@ -1,6 +1,11 @@
 use std::{collections::HashMap, process::Command, sync::Arc};
 
-use ratatui::{layout::Rect, text::ToLine, widgets::Widget};
+use ratatui::{
+    layout::Rect,
+    style::{Color, Style},
+    text::ToLine,
+    widgets::Widget,
+};
 
 use crate::{
     helpers::terminal_line::TerminalLine,
@@ -146,7 +151,12 @@ impl Widget for &CommandInterpreter {
     where
         Self: Sized,
     {
-        let line = self.line.to_line();
+        let line = self
+            .line
+            .to_line()
+            .style(Style::default().fg(Color::from_u32(
+                (*self.colors).get("cmd").cloned().unwrap_or(0xffffff),
+            )));
         let rect = Rect {
             x: 0,
             y: area.height - 1,
