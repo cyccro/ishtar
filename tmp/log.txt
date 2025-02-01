@@ -1,4 +1,2 @@
-Info: Initialize Process; at 2025-01-31T13:27:36.090730181
-Info: Entering Ishtar 'Selection' mode; at 2025-01-31T13:27:40.734402654
-Info: Entering Ishtar 'Modify' mode; at 2025-01-31T13:27:40.791531544
-Info: Entering Ishtar 'Cmd' mode; at 2025-01-31T13:27:45.776928674
+Info: /home/cycro/Programming/rust/ishtar; at 2025-02-01T22:20:57.908142807
+Info: Initialize Process; at 2025-02-01T22:20:57.908215225

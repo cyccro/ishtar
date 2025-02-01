@@ -8,7 +8,9 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget},
 };
 
-use isht::ConfigStatment;
+use isht::{CmdTask, ConfigStatment};
+
+use super::IshtarSelectable;
 
 ///A handler for keybinds. Starts listening when receiving a Control Key(Alt, Control, Shift, etc...) and stops when
 ///receiving an Enter key
@@ -16,6 +18,7 @@ pub struct KeybindHandler {
     pub initializer: KeyModifiers,
     pub listening: bool,
     pub buffer: Vec<String>,
+    pub current_mode: usize,
     bindings: [HashMap<String, Vec<ConfigStatment>>; 3],
     colors: Arc<HashMap<String, u32>>,
 }
@@ -29,6 +32,7 @@ impl KeybindHandler {
             listening: false,
             buffer: Vec::new(),
             bindings,
+            current_mode: 0,
             colors,
         }
     }
@@ -62,6 +66,14 @@ impl KeybindHandler {
     }
     pub fn get(&self, val: &String, mode: usize) -> Option<&Vec<ConfigStatment>> {
         self.bindings[mode].get(val)
+    }
+    pub fn content(&self) -> String {
+        self.buffer
+            .join("-")
+            .split(' ')
+            .collect::<Vec<&str>>()
+            .join("")
+            .to_string()
     }
 }
 impl Widget for &KeybindHandler {
@@ -106,5 +118,54 @@ impl Widget for &KeybindHandler {
             },
             buf,
         );
+    }
+}
+impl IshtarSelectable for KeybindHandler {
+    fn priority(&self) -> u8 {
+        2
+    }
+    fn priority_static() -> u8
+    where
+        Self: Sized,
+    {
+        2
+    }
+    fn can_render(&self) -> bool {
+        self.listening
+    }
+    fn keydown(&mut self, key: KeyCode) -> isht::CmdTask {
+        match key {
+            KeyCode::Enter => {
+                let content = self.content();
+                if let Some(mut data) = self.get(&content, self.current_mode).cloned() {
+                    let mut multi = Vec::new();
+                    let mut idx = 0;
+                    while let Some(statment) = data.get(idx).cloned() {
+                        match statment {
+                            ConfigStatment::Task(t) => multi.push(t),
+                            ConfigStatment::Cmd(s) => {
+                                if let Some(ref mut d) = self.get(&s, self.current_mode).cloned() {
+                                    data.append(d);
+                                }
+                            }
+                            _ => {}
+                        }
+                        idx += 1;
+                    }
+                    self.stop_listening();
+                    return CmdTask::Multi(multi);
+                };
+                self.stop_listening();
+            }
+            KeyCode::Esc => self.stop_listening(),
+            key => {
+                self.handle(key);
+                return CmdTask::Null;
+            }
+        }
+        CmdTask::Continue
+    }
+    fn renderize(&mut self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+        self.render(area, buf);
     }
 }

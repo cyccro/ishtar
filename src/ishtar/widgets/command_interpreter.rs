@@ -1,6 +1,8 @@
 use std::{collections::HashMap, process::Command, sync::Arc};
 
+use isht::CmdTask;
 use ratatui::{
+    crossterm::event::KeyCode,
     layout::Rect,
     style::{Color, Style},
     text::ToLine,
@@ -11,10 +13,12 @@ use crate::{
     helpers::terminal_line::TerminalLine,
     ishtar::enums::{CmdResponse, IshtarMode},
 };
+
+use super::IshtarSelectable;
 pub struct CommandInterpreter {
     line: TerminalLine,
     cursor: usize,
-    builtins: HashMap<String, CmdResponse>,
+    builtins: HashMap<String, CmdTask>,
     colors: Arc<HashMap<String, u32>>,
 }
 impl CommandInterpreter {
@@ -24,8 +28,8 @@ impl CommandInterpreter {
             cursor: 0,
             builtins: {
                 let mut builtins = HashMap::new();
-                builtins.insert(":l".into(), CmdResponse::Exit);
-                builtins.insert(":r".into(), CmdResponse::Reset);
+                builtins.insert(":l".into(), CmdTask::Exit);
+                builtins.insert(":r".into(), CmdTask::Reset);
                 builtins
             },
             colors,
@@ -54,26 +58,25 @@ impl CommandInterpreter {
         self.line.clear();
         self.line.push_str_back(content);
     }
-    fn check_for_unique(&self, c: char) -> Option<CmdResponse> {
+    fn check_for_unique(&self, c: char) -> CmdTask {
         match c {
-            'm' => Some(CmdResponse::ChangeMode(
-                crate::ishtar::enums::IshtarMode::Modify,
-            )),
-            's' => Some(CmdResponse::ChangeMode(IshtarMode::Selection)),
-            _ => None,
+            'm' => CmdTask::EnterModify,
+            's' => CmdTask::EnterSelection,
+            _ => CmdTask::Null,
         }
     }
     ///Writes the char into the interpreter and checks if the the written key is defined as
     ///shortcut, if so returns its task
-    pub fn write(&mut self, c: char) -> Option<CmdResponse> {
+    pub fn write(&mut self, c: char) -> CmdTask {
         if self.is_empty() {
-            if let Some(e) = self.check_for_unique(c) {
-                return Some(e);
-            };
+            let task = self.check_for_unique(c);
+            if !matches!(&task, CmdTask::Null) {
+                return task;
+            }
         }
         self.line.insert(self.cursor, c);
         self.cursor += 1;
-        None
+        CmdTask::Null
     }
     pub fn backspace(&mut self) {
         if self.line.is_empty() {
@@ -89,19 +92,40 @@ impl CommandInterpreter {
         self.line.clear();
         self.cursor = 0;
     }
-    //Executes the given command
-    pub fn execute_cmd(&mut self, cmd: &str) -> Option<CmdResponse> {
-        if let Some(builtin) = self.builtins.get(cmd) {
-            return Some(builtin.clone());
+    fn execute_internal(&mut self, target: &str) -> CmdTask {
+        if let Some(builtin) = self.builtins.get(target) {
+            return builtin.clone();
         }
-        todo!();
+        let mut result = CmdTask::Null;
+        if let Some('!') = target.chars().nth(0) {
+            for cmd in target[1..].split(';') {
+                if let Err(e) = Command::new(cmd).spawn() {
+                    self.set(&format!("{:?}", e));
+                };
+            }
+            self.clear();
+            return CmdTask::Null;
+        }
+        let broken_cmd = target.split(' ').collect::<Vec<_>>();
+        if broken_cmd.len() > 1 {
+        } else {
+            match broken_cmd[0] {
+                ":s" => result = CmdTask::SaveFile,
+                _ => {}
+            }
+        }
+        self.clear();
+        result
+    }
+    pub fn execute_cmd(&mut self, cmd: &str) -> CmdTask {
+        self.execute_internal(cmd)
     }
     ///Executes the command that was written into the interpreter
-    pub fn execute(&mut self) -> Option<CmdResponse> {
-        if let Some(builtin) = self.builtins.get(&self.line.to_string()) {
-            return Some(builtin.clone());
+    pub fn execute(&mut self) -> CmdTask {
+        /*if let Some(builtin) = self.builtins.get(&self.line.to_string()) {
+            return builtin.clone();
         }
-        let mut result = None;
+        let mut result = ;
         let string = self.to_string();
         if let Some('!') = string.chars().nth(0) {
             for cmd in string[1..].split(';') {
@@ -110,12 +134,12 @@ impl CommandInterpreter {
                 };
             }
             self.clear();
-            return None;
+            return CmdTask::Null;
         }
         let broken_cmd = string.split(' ').collect::<Vec<_>>();
         if broken_cmd.len() > 1 {
             match broken_cmd[0] {
-                ":m" => result = Some(CmdResponse::ModifyFile(broken_cmd[1].to_string())),
+                ":m" => result = CmdTask::ModifyFile Some(CmdResponse::ModifyFile(broken_cmd[1].to_string())),
                 _ => {}
             }
         } else {
@@ -131,8 +155,8 @@ impl CommandInterpreter {
                 _ => {}
             }
         }
-        self.clear();
-        result
+        self.clear();*/
+        self.execute_internal(&self.line.to_string())
     }
     pub fn goto_end(&mut self) {
         self.cursor = self.line.len() - 1;
@@ -164,5 +188,31 @@ impl Widget for &CommandInterpreter {
             height: 1,
         };
         line.render(rect, buf)
+    }
+}
+impl IshtarSelectable for CommandInterpreter {
+    fn priority(&self) -> u8 {
+        0
+    }
+    fn priority_static() -> u8
+    where
+        Self: Sized,
+    {
+        0
+    }
+    fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> isht::CmdTask {
+        match key {
+            KeyCode::Esc => self.clear(),
+            KeyCode::Char(c) => return self.write(c),
+            KeyCode::Left => self.move_left(),
+            KeyCode::Right => self.move_right(),
+            KeyCode::Enter => return self.execute(),
+            KeyCode::Backspace => self.backspace(),
+            _ => return CmdTask::Null,
+        };
+        CmdTask::Null
+    }
+    fn renderize(&mut self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+        self.render(area, buf);
     }
 }

@@ -14,5 +14,6 @@ tree-sitter-javascript = "0.23.1"
 unicode-normalization = "0.1.24"
 isht = { path = "./isht/" }
 gapbuf = "0.1.4"
+downcast-rs = "2.0.1"
 [workspace]
 members = ["./isht"]

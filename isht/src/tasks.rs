@@ -1,5 +1,6 @@
 #[derive(Debug, Clone)]
 pub enum CmdTask {
+    Multi(Vec<CmdTask>),
     //position
     SavePos,
     MoveSaved,
@@ -14,15 +15,19 @@ pub enum CmdTask {
     PasteSys,
     PasteEditor,
     //fs
-    CreateFile,
-    RenameFile,
-    DeleteFile,
+    CreateFile(String),         //File target
+    ModifyFile(String),         //File target
+    RenameFile(String, String), //By now not avaible in isht
+    DeleteFile(String),         //File target
     WriteOnFile,
     SaveFile,
-    CopyFile,
-    GetFileContent,
+    CopyFile,      //Copies the file to clipboard
     Write(String), //writes on the current buffer; SysClip and EditorClip are reserved words for
     //System and Editor clipboard respectively
+    RequestSearchFile, //Open file manager with this request
+    RequestCreateFile,
+    RequestRenameFile,
+    RequestDeleteFile,
     //Cmd mode
     EnterNormal,
     EnterModify,
@@ -46,7 +51,17 @@ pub enum CmdTask {
     MoveIOB, // init of buffer
 
     Swap, //swap file buffers
+
+    //Edtior internals
+    Null,     //For functions that need returning some task but dont want doing anything
+    Continue, //For functions that need continuing the function without doing anything and returning
+    SetPriority(u8),
+    Exit,
+    Reset,
+    Log(String),
+    Warn(String),
 }
+//Some are not here because theyre used in the parser
 impl CmdTask {
     pub fn new<S: Into<String>>(value: S) -> Result<Self, String> {
         let value = value.into();
@@ -61,13 +76,9 @@ impl CmdTask {
             "CopyToEditor" => Self::CopyToEditor,
             "PasteSys" => Self::PasteSys,
             "PasteEditor" => Self::PasteEditor,
-            "CreateFile" => Self::CreateFile,
-            "RenameFile" => Self::RenameFile,
             "SaveFile" => Self::SaveFile,
-            "DeleteFile" => Self::DeleteFile,
             "WriteOnFile" => Self::WriteOnFile,
             "CopyFile" => Self::CopyFile,
-            "GetFileContent" => Self::GetFileContent,
             //Cmd mode
             "EnterCmd" | "EnterNormal" => Self::EnterNormal,
             "EnterModify" => Self::EnterModify,
@@ -77,6 +88,12 @@ impl CmdTask {
             "DeleteLine" => Self::DeleteLine,
             "CopySelection" => Self::CopySelection,
             "DeleteSelection" => Self::DeleteSelection,
+
+            "RequestSearchFile" => Self::RequestSearchFile, //Open file manager with this request
+            "RequestCreateFile" => Self::RequestCreateFile,
+            "RequestRenameFile" => Self::RequestRenameFile,
+            "RequestDeleteFile" => Self::RequestDeleteFile,
+
             //Move
             "MoveIOW" => Self::MoveIOW, //Init of word
             "MoveEOW" => Self::MoveEOW, //End of word
@@ -86,6 +103,7 @@ impl CmdTask {
             "MoveIOB" => Self::MoveIOB, //Init of buffer
 
             "Swap" => Self::Swap, //Swap file buffers
+            "Null" => Self::Null,
             _ => return Err("Not known task named {value}".to_string()),
         })
     }

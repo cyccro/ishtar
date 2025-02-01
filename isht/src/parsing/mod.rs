@@ -95,7 +95,6 @@ fn parse_subgroup(
             let Some(ConfigToken::Identifier(tk)) = tokens.pop_front() else {
                 unreachable!();
             };
-            dbg!(&tk);
             if matches!(
                 tk.as_ref(),
                 "ExecCmd" | "ExecPrompt" | "MoveToLine" | "MoveToRow" | "Write" | "Color"
@@ -111,13 +110,13 @@ fn parse_subgroup(
                             if !matches!(tokens.pop_front(), Some(ConfigToken::Arrow)) {
                                 return Err(IshtParseError::ExpectingArrow(s).into());
                             }
-                            dbg!(tokens.front());
                             let Some(ConfigToken::Num(num)) = tokens.pop_front() else {
                                 return Err(IshtParseError::MissingNumParameter.into());
                             };
                             ConfigStatment::Color(num)
                         }
-                        "ExecCmd" | "ExecPrompt" | "Write" => {
+                        "ExecCmd" | "ExecPrompt" | "Write" | "ModifyFile" | "CreateFile"
+                        | "DeleteFile" => {
                             if !matches!(tokens.pop_front(), Some(ConfigToken::Arrow)) {
                                 return Err(IshtParseError::ExpectingArrow(s).into());
                             };
@@ -128,6 +127,9 @@ fn parse_subgroup(
                                 "ExecCmd" => CmdTask::ExecCmd(content),
                                 "ExecPrompt" => CmdTask::ExecutePrompt(content),
                                 "Write" => CmdTask::Write(content),
+                                "ModifyFile" => CmdTask::ModifyFile(content),
+                                "CreateFile" => CmdTask::CreateFile(content),
+                                "DeleteFile" => CmdTask::DeleteFile(content),
                                 _ => unreachable!(),
                             };
                             ConfigStatment::Task(task)
@@ -206,7 +208,5 @@ fn parse_tokens(mut tokens: VecDeque<ConfigToken>) -> Result<ConfigStatment> {
 }
 pub fn parse_content(content: String) -> Result<ConfigStatment> {
     let tokens = lex_content(content);
-    let ast = parse_tokens(tokens);
-    dbg!(&ast);
-    ast
+    parse_tokens(tokens)
 }

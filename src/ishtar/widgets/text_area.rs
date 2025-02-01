@@ -21,12 +21,13 @@ use crate::helpers::{
 
 use super::clipboard::IshtarClipboard;
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum TextAreaMode {
     Writing,
     Selecting,
 }
 ///Writing buffer
+#[derive(Debug)]
 pub struct TextArea {
     lines: Vec<TerminalLine>,
     position: Vec2,
@@ -191,7 +192,7 @@ impl TextArea {
             self.x += 1;
         }
     }
-    ///Writes the given char checking for punctuators
+    ///Writes the given char checking for punctuators; Does nothing on Selectionmode
     pub fn write_char(&mut self, c: char) {
         if self.mode == TextAreaMode::Selecting {
             return;
@@ -493,9 +494,9 @@ impl TextArea {
         CmdTask::EnterModify
     }
     ///Copies to the clipboard(virtual or not if given) the content of the selection
-    pub fn copy_selection(&mut self, clipboard: &mut IshtarClipboard, is_virtual: bool) -> CmdTask {
+    pub fn get_selection(&self) -> Option<String> {
         if !self.is_selecting() {
-            return CmdTask::EnterModify;
+            return None;
         }
         let (mut min, max) = min_max(self.y, self.selection_cursor.y() as usize);
         let mut buffer = String::new();
@@ -507,12 +508,7 @@ impl TextArea {
             buffer.push('\n');
             min += 1;
         }
-        if is_virtual {
-            clipboard.set_virtual(buffer);
-        } else {
-            clipboard.set(buffer);
-        }
-        CmdTask::EnterModify
+        Some(buffer)
     }
     fn is_in_selection_bounds(&self, idx: usize) -> bool {
         if self.selection_cursor.y() > self.y as u16 {
