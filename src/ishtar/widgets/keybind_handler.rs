@@ -153,17 +153,21 @@ impl IshtarSelectable for KeybindHandler {
                         idx += 1;
                     }
                     self.stop_listening();
+                    multi.push(CmdTask::ReturnSavedMode);
                     return CmdTask::Multi(multi);
                 };
                 self.stop_listening();
+                CmdTask::ReturnSavedMode
             }
-            KeyCode::Esc => self.stop_listening(),
+            KeyCode::Esc => {
+                self.stop_listening();
+                CmdTask::ReturnSavedMode
+            }
             key => {
                 self.handle(key);
-                return CmdTask::Null;
+                CmdTask::Null
             }
         }
-        CmdTask::Continue
     }
     fn renderize(&mut self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
         self.render(area, buf);

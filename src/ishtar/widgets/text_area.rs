@@ -159,9 +159,11 @@ impl TextArea {
     ///each line and returns the amount of lines set
     pub fn set_content(&mut self, content: String) -> usize {
         self.lines.clear();
+        self.byte_offsets.clear();
         let mut idx = 0;
         for line in content.lines() {
             self.lines.push(TerminalLine::from_str(line));
+            self.byte_offsets.push(0);
             idx += 1;
         }
         idx
@@ -408,6 +410,8 @@ impl TextArea {
     pub fn modify_file_name(&mut self, new_name: &str) {
         if let Some(ref file) = self.editing_file {
             self.editing_file = Some(file.with_file_name(new_name));
+        } else {
+            self.editing_file = Some(new_name.into())
         }
     }
     pub fn modify_file_extension(&mut self, new_name: &str) {

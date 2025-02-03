@@ -1,58 +1,74 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use isht::CmdTask;
-use ratatui::{
-    style::{Color, Style},
-    text::Line,
-    widgets::Widget,
-};
+use ratatui::{buffer::Buffer, layout::Rect, style::Color, widgets::Widget};
 
-use crate::helpers::{AreaOrder, FileTree, IshtarColors};
+use crate::helpers::{AreaOrder, IshtarColors};
 
 use super::IshtarSelectable;
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum ManagingMode {
     Deleting,
     Renaming,
     Creating,
     Searching,
 }
-
+pub struct Searcher {
+    orientation: AreaOrder,
+    path: PathBuf,
+    colors: [Color; 3],
+}
+impl Searcher {
+    pub fn new(orientation: AreaOrder, path: PathBuf, colors: [Color; 3]) -> Self {
+        Self {
+            orientation,
+            path,
+            colors,
+        }
+    }
+    pub fn render(&self, content: &String, area: Rect, buf: &mut Buffer) {
+        //Use layout
+    }
+}
 pub struct FileManager {
     seeing_file: bool, //Flag for checking if file content is being shown while searching
-    orientation: AreaOrder,
-    tree: Vec<PathBuf>,
-    colors: IshtarColors,
     pub mode: ManagingMode,
     opened: bool,
-    last_opened_dir: Option<PathBuf>,
-    writing_buf: String,
+    buffer: String,
+    searcher: Searcher,
 }
 
 impl FileManager {
+    fn get_colors_from(colors: IshtarColors) -> [Color; 3] {
+        let searcher_color =
+            Color::from_u32(colors.get("seracher_title").cloned().unwrap_or(0xffffff));
+        let searcher_boder_color = colors
+            .get("seracher_boder")
+            .map(|n| Color::from_u32(*n))
+            .unwrap_or(searcher_color);
+        let searcher_field_color = colors
+            .get("searcher_field")
+            .map(|n| Color::from_u32(*n))
+            .unwrap_or(searcher_color);
+        [searcher_color, searcher_boder_color, searcher_field_color]
+    }
     pub fn new_horizontal(see_file: bool, path: PathBuf, colors: IshtarColors) -> Self {
         Self {
+            searcher: Searcher::new(AreaOrder::Vertical, path, Self::get_colors_from(colors)),
             seeing_file: see_file,
-            orientation: AreaOrder::Horizontal,
-            tree: FileTree::Dir(path).read_paths().unwrap(),
-            colors,
             mode: ManagingMode::Searching,
-            last_opened_dir: None,
             opened: false,
-            writing_buf: String::with_capacity(64),
+            buffer: String::with_capacity(32),
         }
     }
     pub fn new_vertical(see_file: bool, path: PathBuf, colors: IshtarColors) -> Self {
         Self {
+            searcher: Searcher::new(AreaOrder::Vertical, path, Self::get_colors_from(colors)),
             seeing_file: see_file,
-            orientation: AreaOrder::Vertical,
-            tree: FileTree::Dir(path).read_paths().unwrap(), //Panics due, if fails its a bug and i
-            //gotta solve it
-            colors,
             mode: ManagingMode::Searching,
-            last_opened_dir: None,
             opened: false,
-            writing_buf: String::with_capacity(64),
+            buffer: String::with_capacity(32),
         }
     }
     pub fn open(&mut self) {
@@ -67,15 +83,10 @@ impl Widget for &FileManager {
     where
         Self: Sized,
     {
-        Line::styled("Eitalasqueira", Style::default().bg(Color::Black)).render(
-            ratatui::layout::Rect {
-                x: 40,
-                y: 40,
-                width: 40,
-                height: 40,
-            },
-            buf,
-        );
+        let (w, h) = (area.width >> 1, area.height >> 1);
+        if self.mode == ManagingMode::Searching {
+            self.searcher.render(&self.buffer, area, buf)
+        };
     }
 }
 impl IshtarSelectable for FileManager {

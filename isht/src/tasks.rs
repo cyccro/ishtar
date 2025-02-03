@@ -1,6 +1,8 @@
 #[derive(Debug, Clone)]
 pub enum CmdTask {
     Multi(Vec<CmdTask>),
+    SaveMode,
+    ReturnSavedMode,
     //position
     SavePos,
     MoveSaved,
@@ -19,15 +21,18 @@ pub enum CmdTask {
     ModifyFile(String),         //File target
     RenameFile(String, String), //By now not avaible in isht
     DeleteFile(String),         //File target
-    WriteOnFile,
+    SaveFileAs(String),
     SaveFile,
-    CopyFile,      //Copies the file to clipboard
+    WriteOnFile,
+    CopyFile,      //Copies the file path to clipboard
     Write(String), //writes on the current buffer; SysClip and EditorClip are reserved words for
     //System and Editor clipboard respectively
-    RequestSearchFile, //Open file manager with this request
-    RequestCreateFile,
-    RequestRenameFile,
-    RequestDeleteFile,
+    ReqSearchFile, //Open file manager with this request
+    ReqCreateFile,
+    ReqRenameFile,
+    ReqDeleteFile,
+    ReqModifyFile,
+    ReqSaveFile,
     //Cmd mode
     EnterNormal,
     EnterModify,
@@ -66,6 +71,9 @@ impl CmdTask {
     pub fn new<S: Into<String>>(value: S) -> Result<Self, String> {
         let value = value.into();
         Ok(match value.as_ref() {
+            "SaveMode" => Self::SaveMode,
+            "ReturnSavedMode" => Self::ReturnSavedMode,
+
             "SavePos" => Self::SavePos,
             "MoveSaved" => Self::MoveSaved,
             "CreateWindow" => Self::CreateWindow,
@@ -89,10 +97,10 @@ impl CmdTask {
             "CopySelection" => Self::CopySelection,
             "DeleteSelection" => Self::DeleteSelection,
 
-            "RequestSearchFile" => Self::RequestSearchFile, //Open file manager with this request
-            "RequestCreateFile" => Self::RequestCreateFile,
-            "RequestRenameFile" => Self::RequestRenameFile,
-            "RequestDeleteFile" => Self::RequestDeleteFile,
+            "RequestSearchFile" => Self::ReqSearchFile, //Open file manager with this request
+            "RequestCreateFile" => Self::ReqCreateFile,
+            "RequestRenameFile" => Self::ReqRenameFile,
+            "RequestDeleteFile" => Self::ReqDeleteFile,
 
             //Move
             "MoveIOW" => Self::MoveIOW, //Init of word
