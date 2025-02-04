@@ -145,6 +145,10 @@ impl Ishtar {
 
     ///Updates the cursor position to be on the current writing area
     pub fn update_cursor(&mut self) {
+        if self.is_priority_of::<FileManager>() {
+            self.cursor = self.handler.file_manager().cursor();
+            return;
+        }
         match self.mode {
             IshtarMode::Cmd => {
                 self.cursor.0 = self.handler.cmd().cursor();
@@ -205,9 +209,12 @@ impl Ishtar {
     }
     pub fn request_search(&mut self) {
         self.set_priority::<FileManager>();
-        dbg!(self.is_priority_of::<FileManager>());
         self.handler.file_manager_mut().mode = ManagingMode::Searching;
         self.handler.file_manager_mut().open();
+    }
+    pub fn stop_search(&mut self) {
+        self.priority.0 = self.priority.1;
+        self.handler.file_manager_mut().close();
     }
     ///Some will not be handled here. Probably Req ones due to them being a request and depending
     ///on the state of the terminal, being better to pass to a widget handle it instead
@@ -312,6 +319,7 @@ impl Ishtar {
                 self.display(s, logger::LogLevel::Warn);
             }
             CmdTask::ReqSearchFile => self.request_search(),
+            CmdTask::StopSearch => self.stop_search(),
             CmdTask::Exit => self.exit = true,
             e => panic!("Must implement {e:?} or should not be here"),
         }

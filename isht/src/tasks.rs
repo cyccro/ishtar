@@ -33,6 +33,8 @@ pub enum CmdTask {
     ReqDeleteFile,
     ReqModifyFile,
     ReqSaveFile,
+
+    StopSearch,
     //Cmd mode
     EnterNormal,
     EnterModify,

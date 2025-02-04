@@ -1,3 +1,5 @@
-Info: /home/cycro/Programming/rust/ishtar; at 2025-02-03T20:29:49.811047922
-Info: Initialize Process; at 2025-02-03T20:29:49.811111092
-Info: ReqSearchFile; at 2025-02-03T20:29:51.710617152
+Info: /home/cycro/Programming/rust/ishtar; at 2025-02-04T12:28:47.757503001
+Info: Initialize Process; at 2025-02-04T12:28:47.757539422
+Info: ReqSearchFile; at 2025-02-04T12:28:50.354720998
+Info: StopSearch; at 2025-02-04T12:29:03.730368905
+Info: Exit; at 2025-02-04T12:29:10.001791

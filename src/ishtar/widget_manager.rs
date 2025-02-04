@@ -84,6 +84,9 @@ impl WidgetManager {
     pub fn keybind_mut(&mut self) -> &mut KeybindHandler {
         self.get_widget_mut()
     }
+    pub fn file_manager(&self) -> &FileManager {
+        self.get_widget()
+    }
     pub fn file_manager_mut(&mut self) -> &mut FileManager {
         self.get_widget_mut()
     }
