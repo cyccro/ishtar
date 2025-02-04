@@ -1,5 +1,14 @@
-Info: /home/cycro/Programming/rust/ishtar; at 2025-02-04T12:28:47.757503001
-Info: Initialize Process; at 2025-02-04T12:28:47.757539422
-Info: ReqSearchFile; at 2025-02-04T12:28:50.354720998
-Info: StopSearch; at 2025-02-04T12:29:03.730368905
-Info: Exit; at 2025-02-04T12:29:10.001791
+Info: /home/cycro/Programming/rust/ishtar; at 2025-02-04T16:55:48.218564324
+Info: Initialize Process; at 2025-02-04T16:55:48.218601741
+Info: ReqSearchFile; at 2025-02-04T16:55:49.695144519
+Info: Multi([ModifyFile("/home/cycro/Programming/rust/ishtar/src/ishtar/enums.rs"), StopSearch]); at 2025-02-04T16:55:54.319217926
+Info: ModifyFile("/home/cycro/Programming/rust/ishtar/src/ishtar/enums.rs"); at 2025-02-04T16:55:54.319270008
+Info: StopSearch; at 2025-02-04T16:55:54.319361105
+Info: EnterModify; at 2025-02-04T16:55:57.358909323
+Info: Entering Ishtar 'Modify' mode; at 2025-02-04T16:55:57.358970448
+Info: EnterNormal; at 2025-02-04T16:55:59.230942154
+Info: Entering Ishtar 'Cmd' mode; at 2025-02-04T16:55:59.230998771
+Info: EnterModify; at 2025-02-04T16:56:00.870869980
+Info: Entering Ishtar 'Modify' mode; at 2025-02-04T16:56:00.870923954
+Info: EnterNormal; at 2025-02-04T16:56:05.462893340
+Info: Entering Ishtar 'Cmd' mode; at 2025-02-04T16:56:05.462953127

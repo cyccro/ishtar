@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{env::join_paths, path::PathBuf};
 
 use isht::CmdTask;
 use ratatui::{
@@ -7,7 +7,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Block, Borders, Padding, Paragraph, Widget},
 };
 
 use crate::helpers::{terminal_size, AreaOrder, FileTree, IshtarColors};
@@ -24,7 +24,6 @@ pub enum ManagingMode {
 pub struct Searcher {
     preview: bool,
     orientation: Direction,
-    path: PathBuf,
     in_dir_paths: Vec<PathBuf>,
     current_idx: usize,
     colors: [Color; 3],
@@ -40,13 +39,32 @@ impl Searcher {
             preview: false,
             current_idx: 0,
             orientation,
-            in_dir_paths: FileTree::new(&path).unwrap().read_paths().unwrap(),
-            path,
+            in_dir_paths: std::fs::read_dir(&path)
+                .unwrap()
+                .map(|dir| dir.unwrap().path())
+                .collect(),
             colors,
         }
     }
     pub fn cursor(&self) -> (usize, usize) {
         (self.cursor.0 + self.writing_idx, self.cursor.1)
+    }
+    pub fn update(&mut self) {
+        let Ok(entry) = std::fs::read_dir(self.selected_dir()) else {
+            return;
+        };
+        self.in_dir_paths.clear();
+        entry.for_each(|entry| {
+            self.in_dir_paths.push({
+                let Ok(entry) = entry else {
+                    return;
+                };
+                entry.path()
+            })
+        });
+    }
+    pub fn selected_dir(&self) -> &std::path::Path {
+        &self.in_dir_paths[self.current_idx]
     }
     pub fn render(&mut self, content: &str, area: Rect, buf: &mut Buffer) {
         self.writing_idx = self.writing_idx.min(content.len());
@@ -75,20 +93,27 @@ impl Searcher {
         {
             let block = Block::new()
                 .border_style(self.colors[1])
-                .borders(Borders::ALL);
+                .borders(Borders::ALL)
+                .padding(Padding::new(2, 2, 2, 2));
             let searching_areas = areas[1];
             let mut lines: Vec<Line> = Vec::with_capacity(self.in_dir_paths.len());
-            let mut idx = 0;
-            for buf in &self.in_dir_paths {
+            for (idx, entry) in self.in_dir_paths.iter().enumerate() {
+                let parent_name = entry
+                    .parent()
+                    .unwrap()
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy();
+                let file_name = entry.file_name().unwrap().to_string_lossy();
+                let content = format!("{parent_name}/{file_name}");
                 lines.push(Line::styled(
-                    buf.display().to_string(),
+                    content,
                     Style::default().fg(if self.current_idx == idx {
                         Color::Black
                     } else {
                         Color::Red
                     }),
                 ));
-                idx += 1;
             }
             Paragraph::new(lines).block(block).render(
                 Rect {
@@ -218,6 +243,13 @@ impl IshtarSelectable for FileManager {
                 self.searcher.writing_idx = self.searcher.writing_idx.saturating_sub(1)
             }
             KeyCode::Right => self.move_left(),
+            KeyCode::Down => {
+                self.searcher.current_idx =
+                    (self.searcher.current_idx + 1).min(self.searcher.in_dir_paths.len() - 1);
+            }
+            KeyCode::Up => {
+                self.searcher.current_idx = self.searcher.current_idx.saturating_sub(1);
+            }
             KeyCode::Char(c) => {
                 self.move_left();
                 self.buffer.push(c);
@@ -225,6 +257,18 @@ impl IshtarSelectable for FileManager {
             KeyCode::Delete => self.delete(),
             KeyCode::Backspace => self.backspace(),
             KeyCode::Esc => return CmdTask::StopSearch,
+            KeyCode::Enter => {
+                let dir = self.searcher.selected_dir();
+                return if dir.is_file() {
+                    CmdTask::Multi(vec![
+                        CmdTask::ModifyFile(dir.display().to_string()),
+                        CmdTask::StopSearch,
+                    ])
+                } else {
+                    self.searcher.update();
+                    CmdTask::Null
+                };
+            }
             _ => {}
         }
         CmdTask::Null
