@@ -97,10 +97,6 @@ impl Ishtar {
         self.display(display.display(), logger::LogLevel::Info);
         self.display("Initialize Process", logger::LogLevel::Info);
         let mut terminal = init();
-        terminal
-            .backend_mut()
-            .execute(EnterAlternateScreen)
-            .unwrap();
         terminal.show_cursor()?;
         loop {
             if self.exit {
@@ -110,11 +106,7 @@ impl Ishtar {
             self.handle_event()?;
             self.update_cursor();
         }
-        disable_raw_mode()?;
-        terminal
-            .backend_mut()
-            .execute(LeaveAlternateScreen)
-            .unwrap();
+        ratatui::restore();
         Ok(())
     }
     #[inline]

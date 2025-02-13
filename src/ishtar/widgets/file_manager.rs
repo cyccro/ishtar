@@ -5,12 +5,13 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::KeyCode,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Style, Stylize},
+    style::{Color, Modifier, Style, Stylize},
+    symbols,
     text::{Line, Span},
-    widgets::{Block, Borders, Padding, Paragraph, Widget},
+    widgets::{Block, BorderType, Borders, Padding, Paragraph, Widget},
 };
 
-use crate::helpers::{terminal_size, AreaOrder, FileTree, IshtarColors};
+use crate::helpers::{min_max, terminal_size, AreaOrder, FileTree, IshtarColors};
 
 use super::IshtarSelectable;
 
@@ -76,8 +77,15 @@ impl Searcher {
         {
             let area_search = areas[0];
             let block = Block::new()
+                .border_set(symbols::border::Set {
+                    top_left: symbols::line::ROUNDED.top_left,
+                    top_right: symbols::line::ROUNDED.top_right,
+                    bottom_left: symbols::line::ROUNDED.vertical_right,
+                    bottom_right: symbols::line::ROUNDED.vertical_left,
+                    ..symbols::border::PLAIN
+                })
                 .border_style(self.colors[1])
-                .borders(Borders::ALL)
+                .borders(Borders::LEFT | Borders::RIGHT | Borders::TOP | Borders::BOTTOM)
                 .title_style(self.colors[0])
                 .title("Searching");
             Paragraph::new(Span::from(content)).block(block).render(
@@ -91,36 +99,97 @@ impl Searcher {
             );
         }
         {
+            let set = symbols::border::Set {
+                bottom_left: symbols::line::ROUNDED.bottom_left,
+                bottom_right: symbols::line::ROUNDED.bottom_right,
+                ..symbols::border::PLAIN
+            };
             let block = Block::new()
+                .border_set(set)
                 .border_style(self.colors[1])
-                .borders(Borders::ALL)
-                .padding(Padding::new(2, 2, 2, 2));
+                .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM);
             let searching_areas = areas[1];
-            let mut lines: Vec<Line> = Vec::with_capacity(self.in_dir_paths.len());
-            for (idx, entry) in self.in_dir_paths.iter().enumerate() {
-                let parent_name = entry
-                    .parent()
-                    .unwrap()
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy();
-                let file_name = entry.file_name().unwrap().to_string_lossy();
-                let content = format!("{parent_name}/{file_name}");
-                lines.push(Line::styled(
-                    content,
-                    Style::default().fg(if self.current_idx == idx {
-                        Color::Black
-                    } else {
-                        Color::Red
-                    }),
-                ));
+            let height = searching_areas.height / 2;
+            let len = self.in_dir_paths.len();
+            let dif = {
+                let (min, max) = min_max(len, height as usize);
+                max - min
+            };
+            let mut lines: Vec<Line> = Vec::with_capacity(len.min(height as usize));
+            if height as usize > len {
+                for (idx, entry) in self.in_dir_paths.iter().enumerate() {
+                    let parent_name = entry
+                        .parent()
+                        .unwrap()
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy();
+                    let file_name = entry.file_name().unwrap().to_string_lossy();
+                    let content = format!("{parent_name}/{file_name}");
+                    let style = Style::default();
+                    lines.push(Line::styled(
+                        content,
+                        if self.current_idx == idx {
+                            style.fg(Color::Green).add_modifier(Modifier::ITALIC)
+                        } else {
+                            style.fg(Color::Red)
+                        },
+                    ));
+                }
+            } else {
+                if self.current_idx > dif {
+                    for (idx, entry) in self.in_dir_paths[dif + 1..].iter().enumerate() {
+                        let parent_name = entry
+                            .parent()
+                            .unwrap()
+                            .file_name()
+                            .unwrap()
+                            .to_string_lossy();
+                        let file_name = entry.file_name().unwrap().to_string_lossy();
+                        let content = format!("{parent_name}/{file_name}");
+                        let style = Style::default();
+                        lines.push(Line::styled(
+                            content,
+                            if self.current_idx == dif + idx + 1 {
+                                style.fg(Color::Green).add_modifier(Modifier::ITALIC)
+                            } else {
+                                style.fg(Color::Red)
+                            },
+                        ));
+                    }
+                } else {
+                    for (idx, entry) in self.in_dir_paths
+                        [self.current_idx..(self.current_idx + height as usize).min(len)]
+                        .iter()
+                        .enumerate()
+                    {
+                        let parent_name = entry
+                            .parent()
+                            .unwrap()
+                            .file_name()
+                            .unwrap()
+                            .to_string_lossy();
+                        let file_name = entry.file_name().unwrap().to_string_lossy();
+                        let content = format!("{parent_name}/{file_name}");
+                        let style = Style::default();
+                        lines.push(Line::styled(
+                            content,
+                            if idx == 0 {
+                                style.fg(Color::Green).add_modifier(Modifier::ITALIC)
+                            } else {
+                                style.fg(Color::Red)
+                            },
+                        ));
+                    }
+                }
             }
+
             Paragraph::new(lines).block(block).render(
                 Rect {
                     width: searching_areas.width / 2,
-                    height: searching_areas.height / 2,
+                    height,
                     x: searching_areas.width / 4,
-                    y: searching_areas.height / 4 + areas[0].height,
+                    y: searching_areas.height / 4 + areas[0].height + 1,
                 },
                 buf,
             );

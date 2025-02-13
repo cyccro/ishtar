@@ -310,8 +310,9 @@ impl TextArea {
         if line.is_empty() {
             self.x = 0;
         } else {
-            self.x += char_size_backwards(line.bytes(), self.x.min(line.len()).saturating_sub(1));
-            self.x = self.x.min(line.len() - 1);
+            self.x +=
+                char_size_backwards(line.bytes(), self.x.min(line.len()).saturating_sub(1)) - 1;
+            self.x = self.x.min(line.len());
         }
     }
     pub fn move_up(&mut self) {
@@ -324,7 +325,8 @@ impl TextArea {
         if line.is_empty() {
             self.x = 0;
         } else {
-            self.x += char_size_backwards(line.bytes(), self.x.min(line.len()).saturating_sub(1));
+            self.x +=
+                char_size_backwards(line.bytes(), self.x.min(line.len()).saturating_sub(1)) - 1;
             self.x = self.x.min(line.len());
         }
     }
