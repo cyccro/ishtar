@@ -1,4 +1,9 @@
-use std::{env::join_paths, path::PathBuf};
+use std::{
+    borrow::Cow,
+    env::join_paths,
+    ops::{Range, RangeBounds},
+    path::PathBuf,
+};
 
 use isht::CmdTask;
 use ratatui::{
@@ -63,9 +68,60 @@ impl Searcher {
                 entry.path()
             })
         });
+        self.current_idx = self.current_idx.min(self.in_dir_paths.len());
     }
     pub fn selected_dir(&self) -> &std::path::Path {
-        &self.in_dir_paths[self.current_idx]
+        if let Some(path) = self.in_dir_paths.get(self.current_idx) {
+            path
+        } else {
+            self.in_dir_paths[0].parent().unwrap().parent().unwrap()
+        }
+    }
+
+    fn all_file_names(&self) -> Vec<(Cow<str>, Cow<str>, usize)> {
+        let mut vec = Vec::with_capacity(self.in_dir_paths.len());
+        for (idx, entry) in self.in_dir_paths.iter().enumerate() {
+            let parent_name = entry
+                .parent()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_string_lossy();
+            let file_name = entry.file_name().unwrap().to_string_lossy();
+            vec.push((parent_name, file_name, idx))
+        }
+        vec.push(("..".into(), "".into(), vec.len()));
+        vec
+    }
+    fn file_names_from(&self, n: usize) -> Vec<(Cow<str>, Cow<str>, usize)> {
+        let mut vec = Vec::with_capacity(self.in_dir_paths.len());
+        for (idx, entry) in self.in_dir_paths[n..].iter().enumerate() {
+            let parent_name = entry
+                .parent()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_string_lossy();
+            let file_name = entry.file_name().unwrap().to_string_lossy();
+            vec.push((parent_name, file_name, idx))
+        }
+        vec.push(("..".into(), "".into(), vec.len()));
+        vec
+    }
+    fn file_names(&self, range: Range<usize>) -> Vec<(Cow<str>, Cow<str>, usize)> {
+        let mut vec = Vec::with_capacity(self.in_dir_paths.len());
+        for (idx, entry) in self.in_dir_paths[range].iter().enumerate() {
+            let parent_name = entry
+                .parent()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_string_lossy();
+            let file_name = entry.file_name().unwrap().to_string_lossy();
+            vec.push((parent_name, file_name, idx))
+        }
+        vec.push(("..".into(), "".into(), vec.len()));
+        vec
     }
     pub fn render(&mut self, content: &str, area: Rect, buf: &mut Buffer) {
         self.writing_idx = self.writing_idx.min(content.len());
@@ -109,85 +165,58 @@ impl Searcher {
                 .border_style(self.colors[1])
                 .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM);
             let searching_areas = areas[1];
-            let height = searching_areas.height / 2;
+
+            let height = (searching_areas.height / 2) as usize;
             let len = self.in_dir_paths.len();
+
             let dif = {
-                let (min, max) = min_max(len, height as usize);
+                let (min, max) = min_max(len, height);
                 max - min
             };
-            let mut lines: Vec<Line> = Vec::with_capacity(len.min(height as usize));
-            if height as usize > len {
-                for (idx, entry) in self.in_dir_paths.iter().enumerate() {
-                    let parent_name = entry
-                        .parent()
-                        .unwrap()
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy();
-                    let file_name = entry.file_name().unwrap().to_string_lossy();
-                    let content = format!("{parent_name}/{file_name}");
-                    let style = Style::default();
-                    lines.push(Line::styled(
-                        content,
-                        if self.current_idx == idx {
-                            style.fg(Color::Green).add_modifier(Modifier::ITALIC)
-                        } else {
-                            style.fg(Color::Red)
-                        },
-                    ));
+            let opt = 0;
+            let mut lines: Vec<Line> = Vec::with_capacity(len.min(height));
+
+            let style = Style::default();
+            if height >= len {
+                for (parent, name, idx) in self.all_file_names() {
+                    lines.push(
+                        Line::from(vec![Span::from(parent), Span::from("/"), Span::from(name)])
+                            .style(if self.current_idx == idx {
+                                style.fg(Color::Green).add_modifier(Modifier::ITALIC)
+                            } else {
+                                style.fg(Color::Red)
+                            }),
+                    )
+                }
+            } else if self.current_idx > dif {
+                for (parent, name, idx) in self.file_names_from(dif + 1) {
+                    lines.push(
+                        Line::from(vec![Span::from(parent), Span::from("/"), Span::from(name)])
+                            .style(if self.current_idx == dif + idx + 1 {
+                                style.fg(Color::Green).add_modifier(Modifier::ITALIC)
+                            } else {
+                                style.fg(Color::Red)
+                            }),
+                    )
                 }
             } else {
-                if self.current_idx > dif {
-                    for (idx, entry) in self.in_dir_paths[dif + 1..].iter().enumerate() {
-                        let parent_name = entry
-                            .parent()
-                            .unwrap()
-                            .file_name()
-                            .unwrap()
-                            .to_string_lossy();
-                        let file_name = entry.file_name().unwrap().to_string_lossy();
-                        let content = format!("{parent_name}/{file_name}");
-                        let style = Style::default();
-                        lines.push(Line::styled(
-                            content,
-                            if self.current_idx == dif + idx + 1 {
+                for (parent, name, idx) in
+                    self.file_names(self.current_idx..self.current_idx + height)
+                {
+                    lines.push(
+                        Line::from(vec![Span::from(parent), Span::from("/"), Span::from(name)])
+                            .style(if idx == 0 {
                                 style.fg(Color::Green).add_modifier(Modifier::ITALIC)
                             } else {
                                 style.fg(Color::Red)
-                            },
-                        ));
-                    }
-                } else {
-                    for (idx, entry) in self.in_dir_paths
-                        [self.current_idx..(self.current_idx + height as usize).min(len)]
-                        .iter()
-                        .enumerate()
-                    {
-                        let parent_name = entry
-                            .parent()
-                            .unwrap()
-                            .file_name()
-                            .unwrap()
-                            .to_string_lossy();
-                        let file_name = entry.file_name().unwrap().to_string_lossy();
-                        let content = format!("{parent_name}/{file_name}");
-                        let style = Style::default();
-                        lines.push(Line::styled(
-                            content,
-                            if idx == 0 {
-                                style.fg(Color::Green).add_modifier(Modifier::ITALIC)
-                            } else {
-                                style.fg(Color::Red)
-                            },
-                        ));
-                    }
+                            }),
+                    )
                 }
-            }
-
+            };
             Paragraph::new(lines).block(block).render(
                 Rect {
                     width: searching_areas.width / 2,
-                    height,
+                    height: height as u16,
                     x: searching_areas.width / 4,
                     y: searching_areas.height / 4 + areas[0].height + 1,
                 },
@@ -314,7 +343,7 @@ impl IshtarSelectable for FileManager {
             KeyCode::Right => self.move_left(),
             KeyCode::Down => {
                 self.searcher.current_idx =
-                    (self.searcher.current_idx + 1).min(self.searcher.in_dir_paths.len() - 1);
+                    (self.searcher.current_idx + 1).min(self.searcher.in_dir_paths.len());
             }
             KeyCode::Up => {
                 self.searcher.current_idx = self.searcher.current_idx.saturating_sub(1);
