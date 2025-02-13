@@ -43,6 +43,8 @@ pub fn char_size_backwards(vec: &GapBuffer<u8>, spoint: usize) -> usize {
     } else {
         let mut bcount = 0;
         while bcount < 4 {
+            //These 2 lines check if some of the 3 first bits in the byte are 1, if so, theyre a continuation byte defined
+            //by utf8. Check https://en.wikipedia.org/wiki/UTF-8 for more information
             let mut c = vec[spoint - bcount] & 0b1111_0000;
             if c > 0b1000_0000 {
                 let mut n = 0;
