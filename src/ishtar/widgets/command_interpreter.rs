@@ -7,6 +7,7 @@ use ratatui::{
     style::{Color, Style},
     text::{Line, Span, ToLine},
     widgets::Widget,
+    Frame,
 };
 
 use crate::helpers::terminal_line::TerminalLine;
@@ -240,7 +241,7 @@ impl IshtarSelectable for CommandInterpreter {
         };
         CmdTask::Null
     }
-    fn renderize(&mut self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        self.render(area, buf);
+    fn renderize(&self, frame: &mut Frame, area: Rect) {
+        frame.render_widget(self, area);
     }
 }

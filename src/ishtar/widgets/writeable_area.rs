@@ -5,14 +5,11 @@ use std::{
 };
 
 use isht::CmdTask;
-use ratatui::{buffer::Buffer, crossterm::event::KeyCode, prelude::Rect, widgets::Widget};
+use ratatui::{buffer::Buffer, crossterm::event::KeyCode, prelude::Rect, widgets::Widget, Frame};
 
 use crate::helpers::AreaOrder;
 
-use super::{
-    text_area::{TextArea, TextAreaMode},
-    IshtarSelectable,
-};
+use super::{text_area::TextArea, IshtarSelectable};
 #[derive(Debug)]
 pub struct WriteableArea {
     writers: Vec<TextArea>,
@@ -195,16 +192,16 @@ impl IshtarSelectable for WriteableArea {
         }
         CmdTask::Null
     }
-    fn renderize(&mut self, area: Rect, buf: &mut Buffer) {
-        self.render(area, buf);
+    fn renderize(&self, frame: &mut Frame, area: Rect) {
+        frame.render_widget(self, area);
     }
 }
-impl Widget for &mut WriteableArea {
+impl Widget for &WriteableArea {
     fn render(self, _: Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
     {
-        for writer in &mut self.writers {
+        for writer in &self.writers {
             writer.render_colored(&self.colors, buf);
         }
     }

@@ -3,18 +3,21 @@ use std::{
     env::join_paths,
     ops::{Range, RangeBounds},
     path::PathBuf,
+    time::{Duration, Instant},
 };
 
 use isht::CmdTask;
 use ratatui::{
     buffer::Buffer,
-    crossterm::event::KeyCode,
+    crossterm::event::{self, Event, KeyCode},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     symbols,
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Padding, Paragraph, Widget},
+    widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Widget, Wrap},
+    Frame,
 };
+use tachyonfx::{fx, CellFilter, EffectRenderer, Interpolation, Shader};
 
 use crate::helpers::{min_max, terminal_size, AreaOrder, FileTree, IshtarColors};
 
@@ -55,8 +58,15 @@ impl Searcher {
     pub fn cursor(&self) -> (usize, usize) {
         (self.cursor.0 + self.writing_idx, self.cursor.1)
     }
-    pub fn update(&mut self) {
-        let Ok(entry) = std::fs::read_dir(self.selected_dir()) else {
+
+    ///Updates the current directory to handle the things of the given dir
+    pub fn update(&mut self, dir: Option<&std::path::Path>) {
+        let dir = if let Some(dir) = dir {
+            dir
+        } else {
+            self.selected_dir()
+        };
+        let Ok(entry) = std::fs::read_dir(dir) else {
             return;
         };
         self.in_dir_paths.clear();
@@ -70,11 +80,14 @@ impl Searcher {
         });
         self.current_idx = self.current_idx.min(self.in_dir_paths.len());
     }
+
     pub fn selected_dir(&self) -> &std::path::Path {
         if let Some(path) = self.in_dir_paths.get(self.current_idx) {
             path
+        } else if let Some(path) = self.in_dir_paths[0].parent().unwrap().parent() {
+            path
         } else {
-            self.in_dir_paths[0].parent().unwrap().parent().unwrap()
+            &self.in_dir_paths[0]
         }
     }
 
@@ -123,8 +136,8 @@ impl Searcher {
         vec.push(("..".into(), "".into(), vec.len()));
         vec
     }
-    pub fn render(&mut self, content: &str, area: Rect, buf: &mut Buffer) {
-        self.writing_idx = self.writing_idx.min(content.len());
+    pub fn render(&self, content: &str, area: Rect, buf: &mut Buffer) {
+        //self.writing_idx = self.writing_idx.min(content.len());
         let areas = Layout::new(
             Direction::Vertical,
             [Constraint::Length(3), Constraint::Fill(1)],
@@ -132,6 +145,13 @@ impl Searcher {
         .areas::<2>(area);
         {
             let area_search = areas[0];
+            let rect = Rect {
+                x: area.width / 4,
+                y: area.height / 4,
+                width: area_search.width / 2,
+                height: area_search.height,
+            };
+            Clear.render(rect, buf);
             let block = Block::new()
                 .border_set(symbols::border::Set {
                     top_left: symbols::line::ROUNDED.top_left,
@@ -144,15 +164,10 @@ impl Searcher {
                 .borders(Borders::LEFT | Borders::RIGHT | Borders::TOP | Borders::BOTTOM)
                 .title_style(self.colors[0])
                 .title("Searching");
-            Paragraph::new(Span::from(content)).block(block).render(
-                Rect {
-                    x: area.width / 4,
-                    y: area.height / 4,
-                    width: area_search.width / 2,
-                    height: area_search.height,
-                },
-                buf,
-            );
+            Paragraph::new(Span::from(content))
+                .wrap(Wrap { trim: true })
+                .block(block)
+                .render(rect, buf);
         }
         {
             let set = symbols::border::Set {
@@ -160,20 +175,21 @@ impl Searcher {
                 bottom_right: symbols::line::ROUNDED.bottom_right,
                 ..symbols::border::PLAIN
             };
-            let block = Block::new()
-                .border_set(set)
-                .border_style(self.colors[1])
-                .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM);
             let searching_areas = areas[1];
-
             let height = (searching_areas.height / 2) as usize;
+            let rect = Rect {
+                width: searching_areas.width / 2,
+                height: height as u16,
+                x: searching_areas.width / 4,
+                y: searching_areas.height / 4 + areas[0].height,
+            };
+            Clear.render(rect, buf);
             let len = self.in_dir_paths.len();
 
             let dif = {
                 let (min, max) = min_max(len, height);
                 max - min
             };
-            let opt = 0;
             let mut lines: Vec<Line> = Vec::with_capacity(len.min(height));
 
             let style = Style::default();
@@ -213,15 +229,17 @@ impl Searcher {
                     )
                 }
             };
-            Paragraph::new(lines).block(block).render(
-                Rect {
-                    width: searching_areas.width / 2,
-                    height: height as u16,
-                    x: searching_areas.width / 4,
-                    y: searching_areas.height / 4 + areas[0].height + 1,
-                },
-                buf,
-            );
+            Paragraph::new(lines)
+                .block(
+                    Block::new()
+                        .border_set(set)
+                        .border_style(self.colors[1])
+                        .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM),
+                )
+                .wrap(Wrap { trim: true })
+                .render(rect, buf);
+            let efx = fx::fade_from_fg(Color::Red, (1000, Interpolation::CircOut));
+            efx.with_area(rect);
         }
     }
 }
@@ -282,6 +300,12 @@ impl FileManager {
             _ => todo!(),
         }
     }
+
+    ///Updates the searcher dir to be the given one
+    pub fn update_searcher_dir(&mut self, dir: &std::path::Path) {
+        self.searcher.update(Some(dir));
+    }
+
     fn delete(&mut self) {
         match self.mode {
             ManagingMode::Searching => {
@@ -306,16 +330,19 @@ impl FileManager {
             _ => todo!(),
         }
     }
+    ///Opens the managing section and makes it visible
     #[inline]
     pub fn open(&mut self) {
         self.opened = true;
     }
+    ///Closes the managing section and makes it invisible
     #[inline]
     pub fn close(&mut self) {
         self.opened = false;
     }
 }
-impl Widget for &mut FileManager {
+
+impl Widget for &FileManager {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
@@ -325,18 +352,23 @@ impl Widget for &mut FileManager {
         };
     }
 }
+
 impl IshtarSelectable for FileManager {
     fn priority(&self) -> u8 {
         3
     }
+
     fn priority_static() -> u8
     where
         Self: Sized,
     {
         3
     }
+
     fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> isht::CmdTask {
         match key {
+            KeyCode::End => self.searcher.current_idx = self.searcher.in_dir_paths.len(),
+            KeyCode::Home => self.searcher.current_idx = 0,
             KeyCode::Left => {
                 self.searcher.writing_idx = self.searcher.writing_idx.saturating_sub(1)
             }
@@ -363,7 +395,7 @@ impl IshtarSelectable for FileManager {
                         CmdTask::StopSearch,
                     ])
                 } else {
-                    self.searcher.update();
+                    self.searcher.update(None);
                     CmdTask::Null
                 };
             }
@@ -371,10 +403,12 @@ impl IshtarSelectable for FileManager {
         }
         CmdTask::Null
     }
+
     fn can_render(&self) -> bool {
         self.opened
     }
-    fn renderize(&mut self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-        self.render(area, buf);
+
+    fn renderize(&self, frame: &mut Frame, area: ratatui::prelude::Rect) {
+        frame.render_widget(self, area);
     }
 }

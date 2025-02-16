@@ -169,7 +169,7 @@ impl TextArea {
         idx
     }
     //Gets all the visible lines on the current buffer.
-    pub fn visible_lines(&mut self) -> Vec<(usize, String)> {
+    pub fn visible_lines(&self) -> Vec<(usize, String)> {
         let h = (self.h() - 1) as usize;
         let page = self.y / h; //no need for recalc everytime
         let mut bounds = {
@@ -528,7 +528,7 @@ impl TextArea {
     pub fn is_selecting(&self) -> bool {
         matches!(self.mode, TextAreaMode::Selecting)
     }
-    pub fn render_colored(&mut self, colors: &Arc<HashMap<String, u32>>, buf: &mut Buffer) {
+    pub fn render_colored(&self, colors: &Arc<HashMap<String, u32>>, buf: &mut Buffer) {
         let w = self.size.x() as usize;
         let fg = (**colors).get("text_fg").cloned().unwrap_or(0xffffff);
         let lines: Vec<Line> = if self.is_selecting() {

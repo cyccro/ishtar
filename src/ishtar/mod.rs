@@ -25,11 +25,7 @@ use self::{
     widgets::{command_interpreter::CommandInterpreter, writeable_area::WriteableArea},
 };
 use ratatui::{
-    crossterm::{
-        event::{self, KeyCode, KeyEvent, KeyModifiers},
-        terminal::{disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-        ExecutableCommand,
-    },
+    crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers},
     init,
     layout::Position,
     widgets::Widget,
@@ -69,6 +65,7 @@ impl Default for Ishtar {
         }
     }
 }
+
 impl Ishtar {
     ///Gets the configurations based on the configuration file located as
     ///~/.config/ishtar/config.isht. If not given,
@@ -84,14 +81,17 @@ impl Ishtar {
             IshtarConfiguration::new()
         }
     }
+
     #[inline]
     pub fn new() -> Self {
         Default::default()
     }
+
     fn draw(&mut self, f: &mut Frame) {
         f.set_cursor_position(self.cursor_position());
-        f.render_widget(self, f.area());
+        self.render_widgets(f)
     }
+    ///Initializes the App.
     pub fn run(&mut self) -> std::io::Result<()> {
         let display = self.current_path.clone();
         self.display(display.display(), logger::LogLevel::Info);
@@ -109,14 +109,25 @@ impl Ishtar {
         ratatui::restore();
         Ok(())
     }
+
+    ///Sets the priority of keydown events to the given widget
     #[inline]
     pub fn set_priority<T: IshtarSelectable>(&mut self) {
-        self.priority.0 = T::priority_static();
+        let p = T::priority_static();
+        if p != WriteableArea::priority_static()
+            && self.priority.0 == WriteableArea::priority_static()
+        {
+            self.save_position();
+        }
+        self.priority.0 = p;
     }
+
+    ///Checks if the current priority if of the given widget
     #[inline]
     pub fn is_priority_of<T: IshtarSelectable>(&self) -> bool {
         self.priority.0 == T::priority_static()
     }
+
     #[inline]
     pub fn set_cursor_at(&mut self, x: usize, y: usize) {
         self.cursor.0 = x;
@@ -130,12 +141,13 @@ impl Ishtar {
                 IshtarMode::Modify | IshtarMode::Selection => self.handler.writer().xoffset(),
             }) as u16
     }
+
     #[inline]
     fn cursor_position(&self) -> Position {
         Position::new(self.x_cursor_position(), self.cursor.1 as u16)
     }
 
-    ///Updates the cursor position to be on the current writing area
+    ///Updates the cursor position to be on the current active widget
     pub fn update_cursor(&mut self) {
         if self.is_priority_of::<FileManager>() {
             self.cursor = self.handler.file_manager().cursor();
@@ -184,6 +196,7 @@ impl Ishtar {
         self.handler.writer().save(&self.current_path)?;
         Ok(())
     }
+
     pub fn mode_id(&self) -> usize {
         match self.mode {
             IshtarMode::Cmd => 0,
@@ -191,19 +204,32 @@ impl Ishtar {
             IshtarMode::Selection => 2,
         }
     }
+
+    ///Saves the position of the cursor based on the writer
     pub fn save_position(&mut self) {
         self.saved_cursor = self.handler.writer().cursor();
     }
-    pub fn exec_cmd(&mut self, cmd: &String) -> std::io::Result<ExitStatus> {
+
+    ///Run the given command as a child process
+    pub fn exec_cmd(&mut self, cmd: &str) -> std::io::Result<ExitStatus> {
         std::process::Command::new(cmd)
             .spawn()
             .map(|mut child| child.wait())?
     }
-    pub fn request_search(&mut self) {
+
+    ///Requests to open file searching widget. If the given parameter is given, resets the
+    ///directory
+    pub fn request_search(&mut self, reset_dir: bool) {
         self.set_priority::<FileManager>();
-        self.handler.file_manager_mut().mode = ManagingMode::Searching;
+        let file_manager = self.handler.file_manager_mut();
+        file_manager.mode = ManagingMode::Searching;
+        if reset_dir {
+            file_manager.update_searcher_dir(&self.current_path);
+        }
         self.handler.file_manager_mut().open();
     }
+
+    ///Requests to file search to stop
     pub fn stop_search(&mut self) {
         self.priority.0 = self.priority.1;
         self.handler.file_manager_mut().close();
@@ -310,12 +336,14 @@ impl Ishtar {
             CmdTask::Warn(s) => {
                 self.display(s, logger::LogLevel::Warn);
             }
-            CmdTask::ReqSearchFile => self.request_search(),
+            CmdTask::ReqSearchCurr => self.request_search(false),
+            CmdTask::ReqSearchRoot => self.request_search(true),
             CmdTask::StopSearch => self.stop_search(),
             CmdTask::Exit => self.exit = true,
             e => panic!("Must implement {e:?} or should not be here"),
         }
     }
+
     fn handle_tasks(&mut self, tasks: &Vec<ConfigStatment>) {
         for task in tasks {
             match task {
@@ -329,6 +357,7 @@ impl Ishtar {
             }
         }
     }
+
     ///Handles keybind input. Returns CmdTask::Null if the caller, handler_key, must stop its
     ///execution; CmdTask::Continue otherwhite
     ///The returned task does not have relationship with the modification made.
@@ -362,6 +391,7 @@ impl Ishtar {
         }
         CmdTask::Continue
     }
+
     fn handle_key(&mut self, key: KeyEvent) {
         if let KeyCode::Char(c) = key.code {
             if self.is_priority_of::<WriteableArea>()
@@ -388,33 +418,32 @@ impl Ishtar {
             _ => {}
         }
     }
+
     pub fn handle_event(&mut self) -> std::io::Result<()> {
         if let event::Event::Key(k) = event::read()? {
             self.handle_key(k);
         }
         Ok(())
     }
+    pub fn render_widgets(&mut self, frame: &mut Frame) {
+        let area = frame.area();
+        for i in 0..self.handler.widgets.len() {
+            if self.handler.widgets[i].can_render() {
+                self.handler.widgets[i].renderize(frame, area);
+            }
+        }
+    }
 }
+
 impl Deref for Ishtar {
     type Target = IshtarLogger;
     fn deref(&self) -> &Self::Target {
         &self.logger_area
     }
 }
+
 impl DerefMut for Ishtar {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.logger_area
-    }
-}
-impl Widget for &mut Ishtar {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
-        for i in 0..self.handler.widgets.len() {
-            if self.handler.widgets[i].can_render() {
-                self.handler.widgets[i].renderize(area, buf);
-            }
-        }
     }
 }

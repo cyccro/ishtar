@@ -6,11 +6,11 @@ use ratatui::{
     style::{Color, Style},
     text::Text,
     widgets::{Block, Borders, Paragraph, Widget},
+    Frame,
 };
 
-use isht::{CmdTask, ConfigStatment};
-
 use super::IshtarSelectable;
+use isht::{CmdTask, ConfigStatment};
 
 ///A handler for keybinds. Starts listening when receiving a Control Key(Alt, Control, Shift, etc...) and stops when
 ///receiving an Enter key
@@ -22,6 +22,7 @@ pub struct KeybindHandler {
     bindings: [HashMap<String, Vec<ConfigStatment>>; 3],
     colors: Arc<HashMap<String, u32>>,
 }
+
 impl KeybindHandler {
     pub fn new(
         bindings: [HashMap<String, Vec<ConfigStatment>>; 3],
@@ -36,6 +37,7 @@ impl KeybindHandler {
             colors,
         }
     }
+
     ///Sets the handler to start listening keys. Panics if called when already listening
     pub fn start_listening(&mut self, key: KeyCode, modifier: KeyModifiers) {
         assert!(!self.listening);
@@ -45,12 +47,14 @@ impl KeybindHandler {
         self.buffer.push(modifier.to_string());
         self.buffer.push(key.to_string());
     }
+
     ///Stops listening keys and make start_listnening usable again
     pub fn stop_listening(&mut self) {
         self.buffer.clear();
         self.initializer = KeyModifiers::NONE;
         self.listening = false;
     }
+
     //Appends the given key into the keybind buffer if is listening
     pub fn handle(&mut self, key: KeyCode) {
         if self.listening {
@@ -61,12 +65,15 @@ impl KeybindHandler {
             };
         }
     }
+
     pub fn listening(&self) -> bool {
         self.listening
     }
+
     pub fn get(&self, val: &String, mode: usize) -> Option<&Vec<ConfigStatment>> {
         self.bindings[mode].get(val)
     }
+
     pub fn content(&self) -> String {
         self.buffer
             .join("-")
@@ -76,6 +83,7 @@ impl KeybindHandler {
             .to_string()
     }
 }
+
 impl Widget for &KeybindHandler {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
@@ -120,19 +128,23 @@ impl Widget for &KeybindHandler {
         );
     }
 }
+
 impl IshtarSelectable for KeybindHandler {
     fn priority(&self) -> u8 {
         2
     }
+
     fn priority_static() -> u8
     where
         Self: Sized,
     {
         2
     }
+
     fn can_render(&self) -> bool {
         self.listening
     }
+
     fn keydown(&mut self, key: KeyCode) -> isht::CmdTask {
         match key {
             KeyCode::Enter => {
@@ -169,7 +181,8 @@ impl IshtarSelectable for KeybindHandler {
             }
         }
     }
-    fn renderize(&mut self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        self.render(area, buf);
+
+    fn renderize(&self, frame: &mut Frame, area: Rect) {
+        frame.render_widget(self, area);
     }
 }

@@ -27,7 +27,9 @@ pub enum CmdTask {
     CopyFile,      //Copies the file path to clipboard
     Write(String), //writes on the current buffer; SysClip and EditorClip are reserved words for
     //System and Editor clipboard respectively
-    ReqSearchFile, //Open file manager with this request
+    ReqSearchCurr, //Open file manager with this request on the current directory
+    ReqSearchRoot, //Open file manager with this request on the root directory. Actually, will
+    //reset the directory to be on the root dir(the one ishtar was opened firstly)
     ReqCreateFile,
     ReqRenameFile,
     ReqDeleteFile,
@@ -68,6 +70,7 @@ pub enum CmdTask {
     Log(String),
     Warn(String),
 }
+
 //Some are not here because theyre used in the parser
 impl CmdTask {
     pub fn new<S: Into<String>>(value: S) -> Result<Self, String> {
@@ -99,7 +102,9 @@ impl CmdTask {
             "CopySelection" => Self::CopySelection,
             "DeleteSelection" => Self::DeleteSelection,
 
-            "RequestSearchFile" => Self::ReqSearchFile, //Open file manager with this request
+            "RequestSearchCurr" => Self::ReqSearchCurr, //Open file manager with this request on
+            //the current directory
+            "RequestSearchRoot" => Self::ReqSearchRoot,
             "RequestCreateFile" => Self::ReqCreateFile,
             "RequestRenameFile" => Self::ReqRenameFile,
             "RequestDeleteFile" => Self::ReqDeleteFile,

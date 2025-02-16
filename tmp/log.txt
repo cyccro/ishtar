@@ -1,7 +1,5 @@
-Info: /home/cycro/Programming/rust/ishtar; at 2025-02-13T14:50:54.311081534
-Info: Initialize Process; at 2025-02-13T14:50:54.311119444
-Info: ReqSearchFile; at 2025-02-13T14:51:00.430576451
-Info: Multi([ModifyFile("/home/cycro/Programming/websites/elysb/backend/src/main.rs"), StopSearch]); at 2025-02-13T14:51:12.830130732
-Info: ModifyFile("/home/cycro/Programming/websites/elysb/backend/src/main.rs"); at 2025-02-13T14:51:12.830180832
-Info: StopSearch; at 2025-02-13T14:51:12.841377730
-Info: Exit; at 2025-02-13T14:51:15.310250396
+Info: /home/cycro/Programming/rust/ishtar; at 2025-02-16T13:55:04.918429049
+Info: Initialize Process; at 2025-02-16T13:55:04.918465476
+Info: ReqSearchCurr; at 2025-02-16T13:55:05.616935590
+Info: StopSearch; at 2025-02-16T13:55:07.304959778
+Info: Exit; at 2025-02-16T13:55:25.065514320
