@@ -28,7 +28,6 @@ use ratatui::{
     crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers},
     init,
     layout::Position,
-    widgets::Widget,
     Frame,
 };
 
@@ -84,7 +83,7 @@ impl Ishtar {
 
     #[inline]
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     fn draw(&mut self, f: &mut Frame) {
@@ -109,7 +108,6 @@ impl Ishtar {
         ratatui::restore();
         Ok(())
     }
-
     ///Sets the priority of keydown events to the given widget
     #[inline]
     pub fn set_priority<T: IshtarSelectable>(&mut self) {

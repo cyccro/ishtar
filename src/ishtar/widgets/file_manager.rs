@@ -1,25 +1,19 @@
-use std::{
-    borrow::Cow,
-    env::join_paths,
-    ops::{Range, RangeBounds},
-    path::PathBuf,
-    time::{Duration, Instant},
-};
+use std::{borrow::Cow, ops::Range, path::PathBuf};
 
 use isht::CmdTask;
 use ratatui::{
     buffer::Buffer,
-    crossterm::event::{self, Event, KeyCode},
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style, Stylize},
+    crossterm::event::KeyCode,
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
     symbols,
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Widget, Wrap},
+    widgets::{Block, Borders, Clear, Padding, Paragraph, Widget, Wrap},
     Frame,
 };
-use tachyonfx::{fx, CellFilter, EffectRenderer, Interpolation, Shader};
+use tachyonfx::{fx, Duration, Interpolation, Shader};
 
-use crate::helpers::{min_max, terminal_size, AreaOrder, FileTree, IshtarColors};
+use crate::helpers::{min_max, terminal_size, IshtarColors};
 
 use super::IshtarSelectable;
 
@@ -229,17 +223,22 @@ impl Searcher {
                     )
                 }
             };
+            let mut fx = fx::fade_to_fg(Color::White, (1000, Interpolation::CircOut));
+
             Paragraph::new(lines)
                 .block(
                     Block::new()
                         .border_set(set)
                         .border_style(self.colors[1])
-                        .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM),
+                        .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
+                        .padding(Padding::new(2, 2, 0, 0)),
                 )
                 .wrap(Wrap { trim: true })
                 .render(rect, buf);
-            let efx = fx::fade_from_fg(Color::Red, (1000, Interpolation::CircOut));
-            efx.with_area(rect);
+            let now = std::time::Instant::now();
+            loop {
+                fx.process(Duration::from_millis(33), buf, rect);
+            }
         }
     }
 }

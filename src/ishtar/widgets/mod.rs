@@ -1,6 +1,6 @@
 use downcast_rs::{impl_downcast, Downcast};
 use isht::CmdTask;
-use ratatui::{buffer::Buffer, crossterm::event::KeyCode, layout::Rect, widgets::Widget, Frame};
+use ratatui::{crossterm::event::KeyCode, layout::Rect, Frame};
 
 pub trait IshtarSelectable: Downcast {
     fn priority_static() -> u8
@@ -19,5 +19,6 @@ pub mod clipboard;
 pub mod command_interpreter;
 pub mod file_manager;
 pub mod keybind_handler;
+pub mod popup;
 pub mod text_area;
 pub mod writeable_area;
