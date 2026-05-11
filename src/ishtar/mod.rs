@@ -1,10 +1,7 @@
-mod enums;
 mod logger;
 mod widget_manager;
 
-use crate::widgets::{
-    IshtarClipboard, IshtarCursor, IshtarMode, IshtarModeManager, IshtarSelectable,
-};
+use crate::widgets::{IshtarClipboard, IshtarCursor, IshtarMode, IshtarModeManager};
 use logger::{IshtarLogger, LogLevel};
 use std::{
     env,
@@ -15,11 +12,8 @@ use std::{
 use widget_manager::WidgetManager;
 
 use crate::{
-    helpers::{terminal_size, Vec2},
-    widgets::{
-        file_manager::ManagingMode,
-        CmdTask,
-    },
+    helpers::Vec2,
+    widgets::{file_manager::ManagingMode, CmdTask},
 };
 
 use ratatui::{
@@ -32,7 +26,6 @@ use ratatui::{
 /// Main editor state: owns all widgets, the cursor, mode manager, clipboard, and logger.
 pub struct Ishtar {
     exit: bool,
-    size: (u16, u16),
     current_path: PathBuf,
     logger_area: IshtarLogger,
     cursor: IshtarCursor,
@@ -43,9 +36,7 @@ pub struct Ishtar {
 
 impl Default for Ishtar {
     fn default() -> Self {
-        let size = terminal_size();
         Self {
-            size,
             exit: false,
             current_path: env::current_dir().unwrap(),
             cursor: IshtarCursor::new(),
@@ -83,12 +74,6 @@ impl Ishtar {
         }
         ratatui::restore();
         Ok(())
-    }
-
-    /// Moves the terminal cursor to `(x, y)`.
-    #[inline]
-    pub fn set_cursor_at(&mut self, x: u16, y: u16) {
-        self.cursor.set_cursor(Vec2::new(x, y));
     }
 
     /// Returns the cursor position as a Ratatui `Position`.
@@ -135,12 +120,6 @@ impl Ishtar {
         self.mode.goto_mode(mode);
     }
 
-    /// Saves the active buffer to `current_path / <file_name>`.
-    pub fn save_file(&self) -> std::io::Result<()> {
-        self.handler.writer().save(&self.current_path)?;
-        Ok(())
-    }
-
     /// Opens the file-search widget. If `reset_dir` is `true`, resets the search root.
     pub fn request_search(&mut self, reset_dir: bool) {
         let file_manager = self.handler.file_manager_mut();
@@ -149,11 +128,13 @@ impl Ishtar {
             file_manager.update_searcher_dir(&self.current_path);
         }
         self.handler.file_manager_mut().open();
+        self.handler.set_focus(3); // FileManager
     }
 
     /// Closes the file-search widget.
     pub fn stop_search(&mut self) {
         self.handler.file_manager_mut().close();
+        self.handler.set_focus(0); // WriteableArea
     }
 
     /// Executes a list of tasks in order.
@@ -257,8 +238,17 @@ impl Ishtar {
                 }
             }
 
-            CmdTask::Log(s) => { self.display(s, LogLevel::Info); }
-            CmdTask::Warn(s) => { self.display(s, LogLevel::Warn); }
+            CmdTask::Log(s) => {
+                self.display(s, LogLevel::Info);
+            }
+            CmdTask::Warn(s) => {
+                self.display(s, LogLevel::Warn);
+            }
+
+            CmdTask::FocusNext => self.handler.focus_next(),
+            CmdTask::FocusPrevious => self.handler.focus_previous(),
+            CmdTask::FocusWidget(i) => self.handler.set_focus(*i),
+            CmdTask::FocusDirection(side) => self.handler.focus_direction(*side),
 
             CmdTask::ReqSearchRoot => self.request_search(true),
             CmdTask::Reset => {
@@ -300,11 +290,15 @@ impl Ishtar {
 
     /// Routes a key event to the focused widget and updates cursor state.
     fn handle_key(&mut self, key: KeyEvent) {
-        // Uppercase letters in Modify mode are written directly.
-        if let KeyCode::Char(c) = key.code {
-            if c.is_uppercase() && key.modifiers == KeyModifiers::SHIFT {
-                self.handler.writer_mut().write_char(c);
-                return;
+        // Uppercase+shift writes directly, bypassing keybinds,
+        // but only when the text editor (widget 0) is focused.
+        if self.handler.focused == 0 {
+            if let KeyCode::Char(c) = key.code {
+                if c.is_uppercase() && key.modifiers == KeyModifiers::SHIFT {
+                    self.handler.writer_mut().write_char(c);
+                    self.sync_cursor();
+                    return;
+                }
             }
         }
 
@@ -312,15 +306,15 @@ impl Ishtar {
             return;
         }
 
-        let task = self.handler.writer_mut().keydown(key.code);
+        let task = self.handler.focused_mut().keydown(key.code);
         let _ = self.handle_task(&task);
 
-        // Keep cursor in sync with the text area after every keystroke.
-        if matches!(
-            self.mode.current_mode(),
-            IshtarMode::Modify | IshtarMode::Selection
-        ) {
-            let (cx, cy) = self.handler.writer().cursor();
+        self.sync_cursor();
+    }
+
+    /// Synchronises the terminal cursor position from the focused widget.
+    fn sync_cursor(&mut self) {
+        if let Some((cx, cy)) = self.handler.widgets[self.handler.focused].cursor() {
             self.cursor.set_cursor(Vec2::new(cx as u16, cy as u16));
         }
     }

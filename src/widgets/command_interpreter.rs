@@ -16,12 +16,13 @@ pub struct CommandInterpreter {
     line: TerminalLine,
     cursor: usize,
     builtins: HashMap<String, CmdTask>,
-    colors: Arc<HashMap<String, u32>>,
     requesting_buffer: String,
     request: CmdTask,
+    term_w: u16,
+    term_h: u16,
 }
 impl CommandInterpreter {
-    pub fn new(colors: Arc<HashMap<String, u32>>) -> Self {
+    pub fn new(term_w: u16, term_h: u16) -> Self {
         Self {
             line: TerminalLine::new(),
             cursor: 0,
@@ -31,9 +32,10 @@ impl CommandInterpreter {
                 builtins.insert(":r".into(), CmdTask::Reset);
                 builtins
             },
-            colors,
             requesting_buffer: String::new(),
             request: CmdTask::Null,
+            term_w,
+            term_h,
         }
     }
     ///Gets the current position of the cursor
@@ -187,12 +189,8 @@ impl Widget for &CommandInterpreter {
     where
         Self: Sized,
     {
-        let cmd_color = Color::from_u32((*self.colors).get("cmd").cloned().unwrap_or(0xffffff));
-        let cmd_data_color = (*self.colors)
-            .get("cmd_data")
-            .cloned()
-            .map(Color::from_u32)
-            .unwrap_or(cmd_color);
+        let cmd_color = Color::from_u32(0xffffff);
+        let cmd_data_color = cmd_color;
         let line = if !matches!(self.request, CmdTask::Null) {
             Line::from(vec![
                 Span::styled(self.line.to_string(), Style::default().fg(cmd_color)),
@@ -201,9 +199,7 @@ impl Widget for &CommandInterpreter {
         } else {
             self.line
                 .to_line()
-                .style(Style::default().fg(Color::from_u32(
-                    (*self.colors).get("cmd").cloned().unwrap_or(0xffffff),
-                )))
+                .style(Style::default().fg(Color::from_u32(0xffffffff)))
         };
         let rect = Rect {
             x: 0,
@@ -215,6 +211,19 @@ impl Widget for &CommandInterpreter {
     }
 }
 impl IshtarSelectable for CommandInterpreter {
+    fn cursor(&self) -> Option<(usize, usize)> {
+        Some((self.cursor, self.term_h as usize - 1))
+    }
+
+    fn area(&self) -> Option<Rect> {
+        Some(Rect {
+            x: 0,
+            y: self.term_h - 1,
+            width: self.term_w,
+            height: 1,
+        })
+    }
+
     fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> CmdTask {
         match key {
             KeyCode::Esc => {

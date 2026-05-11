@@ -31,19 +31,16 @@ pub struct KeybindHandler {
     pub current_mode: usize,
     /// Registered keybinds: sequence string → per-mode task lists.
     keybinds: Keybinds,
-    /// Theme colors shared across widgets.
-    colors: Arc<HashMap<String, u32>>,
 }
 
 impl KeybindHandler {
-    pub fn new(keybinds: Keybinds, colors: Arc<HashMap<String, u32>>) -> Self {
+    pub fn new(keybinds: Keybinds) -> Self {
         Self {
             initializer: KeyModifiers::NONE,
             listening: false,
             buffer: Vec::new(),
             current_mode: 0,
             keybinds,
-            colors,
         }
     }
 
@@ -57,7 +54,10 @@ impl KeybindHandler {
     /// # Panics
     /// Panics if called while already listening.
     pub fn start_listening(&mut self, key: KeyCode, modifier: KeyModifiers) {
-        assert!(!self.listening, "start_listening called while already listening");
+        assert!(
+            !self.listening,
+            "start_listening called while already listening"
+        );
         assert!(self.initializer.is_empty());
         self.listening = true;
         self.initializer = modifier;
@@ -107,10 +107,9 @@ impl Widget for &KeybindHandler {
     where
         Self: Sized,
     {
-        let colors = self.colors.deref();
-        let title_color = colors.get("handled_keys_title").cloned().unwrap_or(0xffffff);
-        let keys_color = colors.get("handled_keys_color").cloned().unwrap_or(0xffffff);
-        let border_color = colors.get("handled_keys_border").cloned().unwrap_or(0xffffff);
+        let title_color = 0xffffff;
+        let keys_color = 0xffffff;
+        let border_color = 0xffffff;
 
         let content = self.buffer.join("-");
         let len: u16 = content.len() as u16 + 4;

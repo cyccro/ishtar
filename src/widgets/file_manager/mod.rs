@@ -27,44 +27,23 @@ pub struct FileManager {
 impl FileManager {
     ///Searcher Color, Searcher Border, Searcher Field\n
     ///Color extends for both title of the block and the color of the input
-    fn get_colors_from(colors: IshtarColors) -> [Color; 3] {
-        let searcher_color =
-            Color::from_u32(colors.get("seracher_title").cloned().unwrap_or(0xffffff));
-        let searcher_border_color = colors
-            .get("seracher_border")
-            .map(|n| Color::from_u32(*n))
-            .unwrap_or(searcher_color);
-        let searcher_field_color = colors
-            .get("searcher_field")
-            .map(|n| Color::from_u32(*n))
-            .unwrap_or(searcher_color);
-        [searcher_color, searcher_border_color, searcher_field_color]
-    }
+
     pub fn cursor(&self) -> (usize, usize) {
         match self.mode {
             ManagingMode::Searching => self.searcher.cursor(),
             _ => todo!(),
         }
     }
-    pub fn new_horizontal(see_file: bool, path: PathBuf, colors: IshtarColors) -> Self {
+    pub fn new(see_file: bool, path: PathBuf) -> Self {
         Self {
-            searcher: Searcher::new(Direction::Horizontal, path, Self::get_colors_from(colors)),
+            searcher: Searcher::new(path),
+            seeing_file: see_file,
+            mode: ManagingMode::Searching,
+            opened: false,
+            buffer: String::with_capacity(32),
+        }
+    }
 
-            seeing_file: see_file,
-            mode: ManagingMode::Searching,
-            opened: false,
-            buffer: String::with_capacity(32),
-        }
-    }
-    pub fn new_vertical(see_file: bool, path: PathBuf, colors: IshtarColors) -> Self {
-        Self {
-            searcher: Searcher::new(Direction::Vertical, path, Self::get_colors_from(colors)),
-            seeing_file: see_file,
-            mode: ManagingMode::Searching,
-            opened: false,
-            buffer: String::with_capacity(32),
-        }
-    }
     pub fn move_left(&mut self) {
         match self.mode {
             ManagingMode::Searching => {

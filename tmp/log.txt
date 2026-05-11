@@ -1,4 +1,14 @@
-Info: /home/caina/programming/ishtar; at 2026-05-11T19:06:27.092242975
-Info: Initialize Process; at 2026-05-11T19:06:27.092313876
-Info: EnterNormal; at 2026-05-11T19:08:28.833895949
-Info: EnterNormal; at 2026-05-11T19:08:28.954004874
+Info: /home/caina/programming/ishtar; at 2026-05-11T21:49:55.223697073
+Info: Initialize Process; at 2026-05-11T21:49:55.223714184
+Info: EnterNormal; at 2026-05-11T21:50:01.875237194
+Info: EnterNormal; at 2026-05-11T21:51:40.521565584
+Info: EnterNormal; at 2026-05-11T21:52:40.312573014
+Info: EnterNormal; at 2026-05-11T22:00:16.272684940
+Info: EnterNormal; at 2026-05-11T22:00:18.392695127
+Info: EnterNormal; at 2026-05-11T22:00:18.512652647
+Info: EnterNormal; at 2026-05-11T21:42:33.482572396
+Info: EnterNormal; at 2026-05-11T21:42:34.498462545
+Info: EnterNormal; at 2026-05-11T21:42:34.610458636
+Info: EnterNormal; at 2026-05-11T21:42:36.658448934
+Info: EnterNormal; at 2026-05-11T21:42:37.698500942
+Info: EnterNormal; at 2026-05-11T21:42:37.818674403

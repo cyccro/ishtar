@@ -1,5 +1,14 @@
 use ratatui::{crossterm::event::KeyCode, layout::Rect, Frame};
 
+/// Direction for spatial focus navigation between widgets.
+#[derive(Debug, Clone, Copy)]
+pub enum FocusSide {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 /// Commands that widgets return to request editor actions.
 ///
 /// Widgets return these from [`IshtarSelectable::keydown`] to signal the
@@ -71,6 +80,16 @@ pub enum CmdTask {
     /// Enter selection mode.
     EnterSelection,
 
+    // ── Focus management ──
+    /// Focus the next widget in the list.
+    FocusNext,
+    /// Focus the previous widget in the list.
+    FocusPrevious,
+    /// Focus the widget at the given index.
+    FocusWidget(usize),
+    /// Move focus in a spatial direction (up/down/left/right).
+    FocusDirection(FocusSide),
+
     // ── Selection operations ──
     /// Select the current line.
     SelectLine,
@@ -120,6 +139,21 @@ pub trait IshtarSelectable: downcast_rs::DowncastSync {
 
     /// Draws the widget into `f` constrained to `area`.
     fn renderize(&self, f: &mut Frame, area: Rect);
+
+    /// Returns the widget's bounding rectangle on screen, if applicable.
+    ///
+    /// Used for spatial focus navigation (e.g. focus up/down/left/right).
+    /// Widgets that participate in directional focus should return `Some(rect)`.
+    fn area(&self) -> Option<Rect> {
+        None
+    }
+
+    /// Returns the widget's cursor position in screen coordinates, if applicable.
+    ///
+    /// Used to position the terminal cursor on the focused widget's active location.
+    fn cursor(&self) -> Option<(usize, usize)> {
+        None
+    }
 }
 downcast_rs::impl_downcast!(sync IshtarSelectable);
 
