@@ -4,7 +4,10 @@ use std::path::PathBuf;
 
 use ratatui::{crossterm::event::KeyCode, layout::Direction, style::Color, widgets::Widget, Frame};
 
-use crate::helpers::IshtarColors;
+use crate::{
+    helpers::IshtarColors,
+    widgets::{CmdTask, IshtarSelectable},
+};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ManagingMode {
@@ -125,7 +128,7 @@ impl Widget for &FileManager {
 }
 
 impl IshtarSelectable for FileManager {
-    fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> isht::CmdTask {
+    fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> CmdTask {
         match key {
             KeyCode::End => self.searcher.current_idx = self.searcher.in_dir_paths.len(),
             KeyCode::Home => self.searcher.current_idx = 0,

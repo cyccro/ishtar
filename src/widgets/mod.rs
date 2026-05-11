@@ -1,58 +1,37 @@
-pub mod clipboard;
-pub mod file_manager;
-
 use ratatui::{crossterm::event::KeyCode, layout::Rect, Frame};
 
 #[derive(Debug, Clone)]
 pub enum CmdTask {
-    ///Save the current mode
+    Multi(Vec<CmdTask>),
     SaveMode,
-    ///Goes back to the previous saved mode
     ReturnSavedMode,
-    ///Saves the current position of the cursor
+    //position
     SavePos,
-    ///Moves the cursor to the saved position
     MoveSaved,
-    ///Creates a new window buffer
+    //window
     CreateWindow,
-    ///Deletes the current window buffer
     DeleteWindow,
-    ///Goes to the next window buffer
-    SetWindowNext,
-    ///Goes to the previous window buffer
-    SetWindowPrevious,
-    ///Yanks the text to the system clipboard
+    SetWindowUp,   //goes to the window above
+    SetWindowDown, //goes to the window below
+    //clipboard
     CopyToSys,
-    ///Yanks the text to the editor clipboard
     CopyToEditor,
-    ///Paste the text from the system clipboard
     PasteSys,
-    ///Paste the text from the editor clipboard
     PasteEditor,
-    ///Creates a file on the given path
-    CreateFile(String),
-    ///Modifies the file on the given path
-    ModifyFile(String),
-    ///Rename the file on the `target` to be `out`
-    RenameFile {
-        target: String,
-        out: String,
-    },
-    ///Deletes the file on the given path
-    DeleteFile(String),
-    ///Saves the content on the current buffer on the file on the given path
+    //fs
+    CreateFile(String),         //File target
+    ModifyFile(String),         //File target
+    RenameFile(String, String), //By now not avaible in isht
+    DeleteFile(String),         //File target
     SaveFileAs(String),
-    ///Saves the current buffer on the file
     SaveFile,
-
     WriteOnFile,
-    ///Copies the file path to clipboard
-    CopyFile,
-    ///writes on the current buffer; SysClip and EditorClip are reserved words for System and Editor clipboard respectively
-    Write(String),
-    ///Open file manager with this request on the current directory
-    ReqSearchRoot,
-
+    CopyFile,      //Copies the file path to clipboard
+    Write(String), //writes on the current buffer; SysClip and EditorClip are reserved words for
+    //System and Editor clipboard respectively
+    ReqSearchCurr, //Open file manager with this request on the current directory
+    ReqSearchRoot, //Open file manager with this request on the root directory. Actually, will
+    //reset the directory to be on the root dir(the one ishtar was opened firstly)
     ReqCreateFile,
     ReqRenameFile,
     ReqDeleteFile,
@@ -60,61 +39,67 @@ pub enum CmdTask {
     ReqSaveFile,
 
     StopSearch,
-    ///Enter normal mode
+    //Cmd mode
     EnterNormal,
-    ///Enter modify mode
     EnterModify,
-    ///Enter selection mode
-    EnterSelection,
-    ///Executes the given command
-    ExecCmd(String),
-    ///Executes the following terminal commands.
+    EnterSelection, //mode to select
+    //Cmds
+    ExecCmd(String), //executes the following commands, its terminal ones.
     ExecutePrompt(String),
-    ///Selects the current file
+    //Selection
     SelectLine,
-    ///Deletes the current line
     DeleteLine,
-    ///Copy all the selection
     CopySelection,
-    ///Deletes all the selection
     DeleteSelection,
-    ///Moves to the given line on the buffer
+    //Move
     MoveToLine(u32),
-    ///Moves to the given row on the line
     MoveToRow(u32),
-    ///Moves to the init of the word
-    MoveIOW,
-    ///Moves to the end of the word
-    MoveEOW,
-    ///Moves to the end of the line
-    MoveEOL,
-    ///Moves to the init of the line
-    MoveIOL,
-    ///Moves to the end of the buffer
-    MoveEOB,
-    //Moves to the init of the buffer
-    MoveIOB,
-    ///Swaps file buffers
-    Swap,
+    MoveIOW, //init of word
+    MoveEOW, //end of word
+    MoveEOL, //end of line
+    MoveIOL, //init of line
+    MoveEOB, //end of buffer
+    MoveIOB, // init of buffer
 
-    ///Null command, used on functions that need to return some function but dont want to do anything
-    Null,
-    ///Continue command, used for functions that need to continue without anything    
-    Continue,
-    ///Exists the editor
+    Swap, //swap file buffers
+
+    //Edtior internals
+    Null,     //For functions that need returning some task but dont want doing anything
+    Continue, //For functions that need continuing the function without doing anything and returning
     Exit,
-    ///Resets the editor
     Reset,
-    ///Shows the given content on logs
     Log(String),
-    ///Shows the given content on warnings
     Warn(String),
 }
 
-pub trait IshtarSelectable {
+/// Core trait implemented by every editor widget.
+pub trait IshtarSelectable: downcast_rs::DowncastSync {
+    /// Handles a key press and returns the resulting task (or `CmdTask::Null`).
     fn keydown(&mut self, key: KeyCode) -> CmdTask;
+
+    /// Returns `false` to skip rendering this widget for the current frame.
     fn can_render(&self) -> bool {
         true
     }
+
+    /// Draws the widget into `f` constrained to `area`.
     fn renderize(&self, f: &mut Frame, area: Rect);
 }
+downcast_rs::impl_downcast!(sync IshtarSelectable);
+
+pub mod buffer;
+pub use buffer::writeable_area::WriteableArea;
+pub mod clipboard;
+pub use clipboard::*;
+pub mod command_interpreter;
+pub use command_interpreter::CommandInterpreter;
+pub mod cursor;
+pub use cursor::*;
+pub mod file_manager;
+pub use file_manager::FileManager;
+pub mod keybind_handler;
+pub use keybind_handler::{KeybindHandler, Keybinds};
+pub mod mode;
+pub use mode::*;
+pub mod popup;
+pub use popup::*;

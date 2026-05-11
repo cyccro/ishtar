@@ -5,7 +5,6 @@ use std::{
     sync::Arc,
 };
 
-use isht::CmdTask;
 use ratatui::{
     buffer::Buffer,
     prelude::Rect,
@@ -15,11 +14,10 @@ use ratatui::{
 };
 use unicode_normalization::char::compose;
 
-use crate::helpers::{
-    char_size_backwards, char_size_init, min_max, terminal_line::TerminalLine, Vec2,
+use crate::{
+    helpers::{char_size_backwards, char_size_init, min_max, terminal_line::TerminalLine, Vec2},
+    widgets::{CmdTask, IshtarClipboard},
 };
-
-use super::clipboard::IshtarClipboard;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum TextAreaMode {
@@ -29,12 +27,12 @@ pub enum TextAreaMode {
 ///Writing buffer
 #[derive(Debug)]
 pub struct TextArea {
-    lines: Vec<TerminalLine>,
     position: Vec2,
     size: Vec2,
     selection_cursor: Vec2,
-    x: usize,                 //cursorx
-    y: usize,                 //cursory
+    x: usize, //cursorx
+    y: usize, //cursory
+    lines: Vec<TerminalLine>,
     byte_offsets: Vec<usize>, //will be used for getting the offset received from multibyte chars and so,
     //for aligning the cursor
     punctuator: Option<char>,
@@ -45,12 +43,13 @@ pub struct TextArea {
 impl TextArea {
     pub fn new(x: u16, y: u16, w: u16, h: u16) -> Self {
         Self {
+            x: 0,
+            y: 0,
             punctuator: None,
             position: Vec2::new(x, y),
             size: Vec2::new(w, h),
             selection_cursor: Vec2::new(0, 0),
-            x: 0,
-            y: 0,
+
             byte_offsets: vec![0],
             lines: vec![TerminalLine::new()],
             editing_file: None,

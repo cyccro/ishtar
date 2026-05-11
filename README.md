@@ -126,8 +126,7 @@ Ishtarx follows a modular architecture centered around:
 
 3. **Widget manager improvements**:
    - Replace `panic!()` in widget lookup with proper error handling
-   - Consider using a more efficient lookup mechanism (hashmap by priority)
-   - Add widget registration/deregistration capabilities
+    - Add widget registration/deregistration capabilities
 
 4. **Code organization**:
    - Split large files like `src/ishtar/mod.rs` into smaller, focused modules

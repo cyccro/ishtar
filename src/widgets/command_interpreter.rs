@@ -1,6 +1,5 @@
 use std::{collections::HashMap, process::Command, sync::Arc};
 
-use isht::CmdTask;
 use ratatui::{
     crossterm::event::KeyCode,
     layout::Rect,
@@ -10,7 +9,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::helpers::terminal_line::TerminalLine;
+use crate::{helpers::terminal_line::TerminalLine, widgets::CmdTask};
 
 use super::IshtarSelectable;
 pub struct CommandInterpreter {
@@ -216,16 +215,7 @@ impl Widget for &CommandInterpreter {
     }
 }
 impl IshtarSelectable for CommandInterpreter {
-    fn priority(&self) -> u8 {
-        0
-    }
-    fn priority_static() -> u8
-    where
-        Self: Sized,
-    {
-        0
-    }
-    fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> isht::CmdTask {
+    fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> CmdTask {
         match key {
             KeyCode::Esc => {
                 self.clear();
