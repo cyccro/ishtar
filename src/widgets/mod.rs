@@ -1,74 +1,110 @@
 use ratatui::{crossterm::event::KeyCode, layout::Rect, Frame};
 
+/// Commands that widgets return to request editor actions.
+///
+/// Widgets return these from [`IshtarSelectable::keydown`] to signal the
+/// editor to perform operations such as mode changes, file I/O, clipboard
+/// access, window management, and cursor movement.
 #[derive(Debug, Clone)]
 pub enum CmdTask {
+    // ── Composite ──
+    /// Execute multiple tasks in sequence.
     Multi(Vec<CmdTask>),
+
+    // ── Mode management ──
+    /// Save the current mode for later restoration.
     SaveMode,
+    /// Restore the previously saved mode.
     ReturnSavedMode,
-    //position
+
+    // ── Cursor position ──
+    /// Save the current cursor position.
     SavePos,
+    /// Restore the saved cursor position.
     MoveSaved,
-    //window
+
+    // ── Window / split management ──
+    /// Create a new editor split.
     CreateWindow,
+    /// Close the current editor split.
     DeleteWindow,
-    SetWindowUp,   //goes to the window above
-    SetWindowDown, //goes to the window below
-    //clipboard
+    /// Move focus to the split above.
+    SetWindowUp,
+    /// Move focus to the split below.
+    SetWindowDown,
+
+    // ── Clipboard ──
+    /// Copy selection to the system clipboard.
     CopyToSys,
+    /// Copy selection to the editor (virtual) clipboard.
     CopyToEditor,
+    /// Paste from the system clipboard.
     PasteSys,
+    /// Paste from the editor (virtual) clipboard.
     PasteEditor,
-    //fs
-    CreateFile(String),         //File target
-    ModifyFile(String),         //File target
-    RenameFile(String, String), //By now not avaible in isht
-    DeleteFile(String),         //File target
-    SaveFileAs(String),
+
+    // ── File operations ──
+    /// Open a file for editing.
+    ModifyFile(String),
+    /// Save the current buffer to its associated file.
     SaveFile,
-    WriteOnFile,
-    CopyFile,      //Copies the file path to clipboard
-    Write(String), //writes on the current buffer; SysClip and EditorClip are reserved words for
-    //System and Editor clipboard respectively
-    ReqSearchCurr, //Open file manager with this request on the current directory
-    ReqSearchRoot, //Open file manager with this request on the root directory. Actually, will
-    //reset the directory to be on the root dir(the one ishtar was opened firstly)
-    ReqCreateFile,
-    ReqRenameFile,
-    ReqDeleteFile,
+    /// Save the current buffer to a new file path.
+    SaveFileAs(String),
+    /// Write content to the current buffer at the cursor position.
+    Write(String),
+
+    // ── File request prompts ──
+    /// Request a filename from the user for `:m` (modify file).
     ReqModifyFile,
+    /// Request a filename from the user for `:s` (save new file).
     ReqSaveFile,
-
+    /// Open the file browser at the root directory.
+    ReqSearchRoot,
+    /// Close the file browser.
     StopSearch,
-    //Cmd mode
+
+    // ── Mode transitions ──
+    /// Enter command (normal) mode.
     EnterNormal,
+    /// Enter insert (modify) mode.
     EnterModify,
-    EnterSelection, //mode to select
-    //Cmds
-    ExecCmd(String), //executes the following commands, its terminal ones.
-    ExecutePrompt(String),
-    //Selection
+    /// Enter selection mode.
+    EnterSelection,
+
+    // ── Selection operations ──
+    /// Select the current line.
     SelectLine,
+    /// Delete the current line.
     DeleteLine,
-    CopySelection,
-    DeleteSelection,
-    //Move
+
+    // ── Cursor movement ──
+    /// Move cursor to the beginning of the line.
+    MoveIOL,
+    /// Move cursor to the end of the line.
+    MoveEOL,
+    /// Move cursor to the beginning of the buffer.
+    MoveIOB,
+    /// Move cursor to the end of the buffer.
+    MoveEOB,
+    /// Move cursor by `n` lines (positive = down, negative = up).
     MoveToLine(u32),
+    /// Move cursor by `n` columns (positive = right, negative = left).
     MoveToRow(u32),
-    MoveIOW, //init of word
-    MoveEOW, //end of word
-    MoveEOL, //end of line
-    MoveIOL, //init of line
-    MoveEOB, //end of buffer
-    MoveIOB, // init of buffer
 
-    Swap, //swap file buffers
-
-    //Edtior internals
-    Null,     //For functions that need returning some task but dont want doing anything
-    Continue, //For functions that need continuing the function without doing anything and returning
+    // ── Editor lifecycle ──
+    /// No operation; used as a default return value.
+    Null,
+    /// Continue processing the current event (not yet consumed).
+    Continue,
+    /// Exit the editor.
     Exit,
+    /// Reset the current buffer (clear content and unset file).
     Reset,
+
+    // ── Logging ──
+    /// Log an informational message.
     Log(String),
+    /// Log a warning message.
     Warn(String),
 }
 
@@ -96,10 +132,7 @@ pub use command_interpreter::CommandInterpreter;
 pub mod cursor;
 pub use cursor::*;
 pub mod file_manager;
-pub use file_manager::FileManager;
 pub mod keybind_handler;
-pub use keybind_handler::{KeybindHandler, Keybinds};
 pub mod mode;
 pub use mode::*;
 pub mod popup;
-pub use popup::*;

@@ -1,8 +1,7 @@
-mod searcher;
-pub use searcher::*;
-use std::path::PathBuf;
-
+pub mod searcher;
+use crate::widgets::file_manager::searcher::Searcher;
 use ratatui::{crossterm::event::KeyCode, layout::Direction, style::Color, widgets::Widget, Frame};
+use std::path::PathBuf;
 
 use crate::{
     helpers::IshtarColors,
@@ -50,6 +49,7 @@ impl FileManager {
     pub fn new_horizontal(see_file: bool, path: PathBuf, colors: IshtarColors) -> Self {
         Self {
             searcher: Searcher::new(Direction::Horizontal, path, Self::get_colors_from(colors)),
+
             seeing_file: see_file,
             mode: ManagingMode::Searching,
             opened: false,

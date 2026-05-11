@@ -1,5 +1,4 @@
-Info: /home/caina/programming/ishtar; at 2026-05-11T14:31:58.995462703
-Info: Initialize Process; at 2026-05-11T14:31:58.995490415
-Info: ReturnSavedMode; at 2026-05-11T14:32:35.605286197
-Info: Entering Ishtar 'Cmd' mode; at 2026-05-11T14:32:35.605311524
-Info: Exit; at 2026-05-11T14:32:38.757251597
+Info: /home/caina/programming/ishtar; at 2026-05-11T19:06:27.092242975
+Info: Initialize Process; at 2026-05-11T19:06:27.092313876
+Info: EnterNormal; at 2026-05-11T19:08:28.833895949
+Info: EnterNormal; at 2026-05-11T19:08:28.954004874

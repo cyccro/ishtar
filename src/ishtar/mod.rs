@@ -11,7 +11,6 @@ use std::{
     error::Error,
     ops::{Deref, DerefMut},
     path::PathBuf,
-    process::ExitStatus,
 };
 use widget_manager::WidgetManager;
 
@@ -142,13 +141,6 @@ impl Ishtar {
         Ok(())
     }
 
-    /// Spawns `cmd` as a child process and waits for it to finish.
-    pub fn exec_cmd(&mut self, cmd: &str) -> std::io::Result<ExitStatus> {
-        std::process::Command::new(cmd)
-            .spawn()
-            .map(|mut child| child.wait())?
-    }
-
     /// Opens the file-search widget. If `reset_dir` is `true`, resets the search root.
     pub fn request_search(&mut self, reset_dir: bool) {
         let file_manager = self.handler.file_manager_mut();
@@ -186,13 +178,13 @@ impl Ishtar {
             CmdTask::SaveMode => self.mode.save_mode(),
             CmdTask::ReturnSavedMode => self.mode.goto_saved(),
 
-            CmdTask::CopySelection | CmdTask::CopyToSys | CmdTask::CopyToEditor => {
+            CmdTask::CopyToSys | CmdTask::CopyToEditor => {
                 let Some(data) = self.handler.writer_mut().get_selection() else {
                     self.handle_task(&CmdTask::EnterModify)?;
                     return Ok(());
                 };
                 match task {
-                    CmdTask::CopyToSys | CmdTask::CopySelection => {
+                    CmdTask::CopyToSys => {
                         self.clipboard.set(data)?;
                     }
                     _ => self.clipboard.set_virtual(data),
@@ -230,13 +222,6 @@ impl Ishtar {
             }
             CmdTask::SetWindowUp => self.handler.writer_mut().set_focus_back(),
             CmdTask::SetWindowDown => self.handler.writer_mut().set_focus_next(),
-
-            CmdTask::ExecCmd(cmd) => {
-                let _ = self.exec_cmd(cmd);
-            }
-            CmdTask::ExecutePrompt(prompt) => {
-                self.handler.cmd_mut().execute_cmd(prompt);
-            }
 
             CmdTask::MoveIOL => self.handler.writer_mut().goto_init_of_line(),
             CmdTask::MoveEOL => self.handler.writer_mut().goto_end_of_line(),
@@ -276,6 +261,9 @@ impl Ishtar {
             CmdTask::Warn(s) => { self.display(s, LogLevel::Warn); }
 
             CmdTask::ReqSearchRoot => self.request_search(true),
+            CmdTask::Reset => {
+                self.handler.writer_mut().reset();
+            }
             CmdTask::StopSearch => self.stop_search(),
             CmdTask::Exit => self.exit = true,
 

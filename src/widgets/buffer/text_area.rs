@@ -480,10 +480,11 @@ impl TextArea {
         if !self.is_selecting() {
             return CmdTask::EnterModify;
         }
+        let line = self.lines[self.y].to_string();
         if is_virtual {
-            clipboard.set_virtual(self.lines[self.y].to_string());
+            clipboard.set_virtual(line);
         } else {
-            clipboard.set(self.lines[self.y].to_string());
+            let _ = clipboard.set(line);
         }
         CmdTask::EnterModify
     }
@@ -494,7 +495,7 @@ impl TextArea {
         if is_virtual {
             clipboard.set_virtual(self.to_string());
         } else {
-            clipboard.set(self.to_string());
+            let _ = clipboard.set(self.to_string());
         }
         CmdTask::EnterModify
     }

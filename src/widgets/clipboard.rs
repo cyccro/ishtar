@@ -58,14 +58,15 @@ impl IshtarClipboard {
     }
 
     ///Swaps the contents of the virtual clipboard and the clipboard
-    pub fn swap(&mut self) {
+    pub fn swap(&mut self) -> Result<()> {
         if let Ok(clip) = self.service.get_contents() {
-            self.set(self.virtual_clip.clone());
+            self.set(self.virtual_clip.clone())?;
             self.virtual_clip.clear();
             self.virtual_clip.push_str(&clip);
         } else {
-            self.set(self.virtual_clip.clone());
+            self.set(self.virtual_clip.clone())?;
             self.virtual_clip.clear();
         }
+        Ok(())
     }
 }

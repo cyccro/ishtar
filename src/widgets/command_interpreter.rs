@@ -114,7 +114,7 @@ impl CommandInterpreter {
     }
     fn execute_internal(&mut self, target: &str) -> CmdTask {
         if self.is_requesting() {
-            let mut r = CmdTask::Null;
+            let r;
             match self.request {
                 CmdTask::ReqSaveFile => {
                     r = CmdTask::SaveFileAs(self.requesting_buffer.clone());

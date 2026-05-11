@@ -1,25 +1,24 @@
 use std::{borrow::Cow, ops::Range, path::PathBuf};
 
-use chrono::Duration;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Padding, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Padding, Paragraph, Widget, Wrap},
 };
-use tachyonfx::{fx, Interpolation};
+use tachyonfx::{fx, Duration as FxDuration, Interpolation, Shader};
 
 use crate::helpers::{min_max, terminal_size};
 
 pub struct Searcher {
     preview: bool,
     orientation: Direction,
-    in_dir_paths: Vec<PathBuf>,
-    current_idx: usize,
+    pub in_dir_paths: Vec<PathBuf>,
+    pub current_idx: usize,
     colors: [Color; 3],
-    writing_idx: usize,
+    pub writing_idx: usize,
     cursor: (usize, usize),
 }
 impl Searcher {
@@ -74,7 +73,7 @@ impl Searcher {
         }
     }
 
-    fn all_file_names(&self) -> Vec<(Cow<str>, Cow<str>, usize)> {
+    fn all_file_names<'a>(&'a self) -> Vec<(Cow<'a, str>, Cow<'a, str>, usize)> {
         let mut vec = Vec::with_capacity(self.in_dir_paths.len());
         for (idx, entry) in self.in_dir_paths.iter().enumerate() {
             let parent_name = entry
@@ -89,7 +88,7 @@ impl Searcher {
         vec.push(("..".into(), "".into(), vec.len()));
         vec
     }
-    fn file_names_from(&self, n: usize) -> Vec<(Cow<str>, Cow<str>, usize)> {
+    fn file_names_from<'a>(&'a self, n: usize) -> Vec<(Cow<'a, str>, Cow<'a, str>, usize)> {
         let mut vec = Vec::with_capacity(self.in_dir_paths.len());
         for (idx, entry) in self.in_dir_paths[n..].iter().enumerate() {
             let parent_name = entry
@@ -104,7 +103,7 @@ impl Searcher {
         vec.push(("..".into(), "".into(), vec.len()));
         vec
     }
-    fn file_names(&self, range: Range<usize>) -> Vec<(Cow<str>, Cow<str>, usize)> {
+    fn file_names<'a>(&'a self, range: Range<usize>) -> Vec<(Cow<'a, str>, Cow<'a, str>, usize)> {
         let mut vec = Vec::with_capacity(self.in_dir_paths.len());
         for (idx, entry) in self.in_dir_paths[range].iter().enumerate() {
             let parent_name = entry
@@ -223,9 +222,9 @@ impl Searcher {
                 )
                 .wrap(Wrap { trim: true })
                 .render(rect, buf);
-            let now = std::time::Instant::now();
+
             loop {
-                fx.process(Duration::from_millis(33), buf, rect);
+                fx.process(FxDuration::from_millis(33), buf, rect);
             }
         }
     }

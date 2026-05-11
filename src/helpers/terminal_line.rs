@@ -2,7 +2,6 @@ use core::fmt;
 use std::{
     fmt::{Debug, Display},
     ops::RangeBounds,
-    str::Chars,
 };
 
 use gapbuf::GapBuffer;
