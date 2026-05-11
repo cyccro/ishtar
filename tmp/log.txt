@@ -1,3 +1,5 @@
-Info: /home/cycro/Programming/rust/ishtar; at 2025-04-01T12:02:50.544277276
-Info: Initialize Process; at 2025-04-01T12:02:50.544329108
-Info: ReqSearchCurr; at 2025-04-01T12:02:51.426764208
+Info: /home/caina/programming/ishtar; at 2026-05-11T14:31:58.995462703
+Info: Initialize Process; at 2026-05-11T14:31:58.995490415
+Info: ReturnSavedMode; at 2026-05-11T14:32:35.605286197
+Info: Entering Ishtar 'Cmd' mode; at 2026-05-11T14:32:35.605311524
+Info: Exit; at 2026-05-11T14:32:38.757251597
