@@ -9,38 +9,55 @@ use ratatui::{
     Frame,
 };
 
-use super::IshtarSelectable;
-use isht::{CmdTask, ConfigStatment};
+use crate::widgets::CmdTask;
 
-///A handler for keybinds. Starts listening when receiving a Control Key(Alt, Control, Shift, etc...) and stops when
-///receiving an Enter key
+use super::IshtarSelectable;
+
+/// Keybind map: `"MODIFIER-key"` string → list of tasks per mode index.
+pub type Keybinds = HashMap<String, Vec<Vec<CmdTask>>>;
+
+/// Handles modifier-initiated keybind sequences (e.g. `Ctrl-w`, `Alt-x`).
+///
+/// Starts listening when a key event carries a modifier and stops on `Enter` or `Esc`.
+/// While listening, renders a small overlay showing the keys captured so far.
 pub struct KeybindHandler {
+    /// The modifier that started the current sequence.
     pub initializer: KeyModifiers,
+    /// Whether the handler is currently capturing a sequence.
     pub listening: bool,
+    /// Keys captured since listening started, stored as strings.
     pub buffer: Vec<String>,
+    /// Index of the current editor mode, used to look up the right binding.
     pub current_mode: usize,
-    bindings: [HashMap<String, Vec<ConfigStatment>>; 3],
+    /// Registered keybinds: sequence string → per-mode task lists.
+    keybinds: Keybinds,
+    /// Theme colors shared across widgets.
     colors: Arc<HashMap<String, u32>>,
 }
 
 impl KeybindHandler {
-    pub fn new(
-        bindings: [HashMap<String, Vec<ConfigStatment>>; 3],
-        colors: Arc<HashMap<String, u32>>,
-    ) -> Self {
+    pub fn new(keybinds: Keybinds, colors: Arc<HashMap<String, u32>>) -> Self {
         Self {
             initializer: KeyModifiers::NONE,
             listening: false,
             buffer: Vec::new(),
-            bindings,
             current_mode: 0,
+            keybinds,
             colors,
         }
     }
 
-    ///Sets the handler to start listening keys. Panics if called when already listening
+    /// Returns `true` if the handler is currently capturing a key sequence.
+    pub fn listening(&self) -> bool {
+        self.listening
+    }
+
+    /// Begins capturing a key sequence initiated by `modifier` + `key`.
+    ///
+    /// # Panics
+    /// Panics if called while already listening.
     pub fn start_listening(&mut self, key: KeyCode, modifier: KeyModifiers) {
-        assert!(!self.listening);
+        assert!(!self.listening, "start_listening called while already listening");
         assert!(self.initializer.is_empty());
         self.listening = true;
         self.initializer = modifier;
@@ -48,39 +65,40 @@ impl KeybindHandler {
         self.buffer.push(key.to_string());
     }
 
-    ///Stops listening keys and make start_listnening usable again
+    /// Stops capturing and resets the buffer so a new sequence can begin.
     pub fn stop_listening(&mut self) {
         self.buffer.clear();
         self.initializer = KeyModifiers::NONE;
         self.listening = false;
     }
 
-    //Appends the given key into the keybind buffer if is listening
+    /// Appends `key` to the buffer if currently listening.
     pub fn handle(&mut self, key: KeyCode) {
-        if self.listening {
-            match key {
-                KeyCode::Modifier(m) => self.buffer.push(m.to_string()),
-                KeyCode::Char(c) => self.buffer.push(c.to_string()),
-                k => self.buffer.push(k.to_string()),
-            };
+        if !self.listening {
+            return;
         }
+        let s = match key {
+            KeyCode::Modifier(m) => m.to_string(),
+            KeyCode::Char(c) => c.to_string(),
+            k => k.to_string(),
+        };
+        self.buffer.push(s);
     }
 
-    pub fn listening(&self) -> bool {
-        self.listening
-    }
-
-    pub fn get(&self, val: &String, mode: usize) -> Option<&Vec<ConfigStatment>> {
-        self.bindings[mode].get(val)
-    }
-
+    /// Returns the current buffer joined as a single `"MOD-key1-key2"` string.
     pub fn content(&self) -> String {
         self.buffer
             .join("-")
-            .split(' ')
-            .collect::<Vec<&str>>()
+            .split_whitespace()
+            .collect::<Vec<_>>()
             .join("")
-            .to_string()
+    }
+
+    /// Looks up the task list for `sequence` in the given `mode`.
+    pub fn get(&self, sequence: &str, mode: usize) -> Option<&Vec<CmdTask>> {
+        self.keybinds
+            .get(sequence)
+            .and_then(|modes| modes.get(mode))
     }
 }
 
@@ -90,20 +108,13 @@ impl Widget for &KeybindHandler {
         Self: Sized,
     {
         let colors = self.colors.deref();
-        let title_color = colors
-            .get("handled_keys_title")
-            .cloned()
-            .unwrap_or(0xffffff);
-        let keys_color = colors
-            .get("handled_keys_color")
-            .cloned()
-            .unwrap_or(0xffffff);
-        let border_color = colors
-            .get("handled_keys_border")
-            .cloned()
-            .unwrap_or(0xffffff);
+        let title_color = colors.get("handled_keys_title").cloned().unwrap_or(0xffffff);
+        let keys_color = colors.get("handled_keys_color").cloned().unwrap_or(0xffffff);
+        let border_color = colors.get("handled_keys_border").cloned().unwrap_or(0xffffff);
+
         let content = self.buffer.join("-");
         let len: u16 = content.len() as u16 + 4;
+
         let paragraph = Paragraph::new(Text::styled(
             content,
             Style::default().fg(Color::from_u32(keys_color)),
@@ -116,10 +127,11 @@ impl Widget for &KeybindHandler {
                 .title_style(Style::default().fg(Color::from_u32(title_color)))
                 .title_alignment(Alignment::Center),
         )
-        .alignment(ratatui::layout::Alignment::Center);
+        .alignment(Alignment::Center);
+
         paragraph.render(
             Rect {
-                width: len + 2, //16 == 12 + 4 == sizeof("Handled Keys") + 4
+                width: len + 2,
                 height: 3,
                 x: (area.width / 2) - len / 2,
                 y: area.height / 8,
@@ -130,46 +142,22 @@ impl Widget for &KeybindHandler {
 }
 
 impl IshtarSelectable for KeybindHandler {
-    fn priority(&self) -> u8 {
-        2
-    }
-
-    fn priority_static() -> u8
-    where
-        Self: Sized,
-    {
-        2
-    }
-
     fn can_render(&self) -> bool {
         self.listening
     }
 
-    fn keydown(&mut self, key: KeyCode) -> isht::CmdTask {
+    fn keydown(&mut self, key: KeyCode) -> CmdTask {
         match key {
             KeyCode::Enter => {
                 let content = self.content();
-                if let Some(mut data) = self.get(&content, self.current_mode).cloned() {
-                    let mut multi = Vec::new();
-                    let mut idx = 0;
-                    while let Some(statment) = data.get(idx).cloned() {
-                        match statment {
-                            ConfigStatment::Task(t) => multi.push(t),
-                            ConfigStatment::Cmd(s) => {
-                                if let Some(ref mut d) = self.get(&s, self.current_mode).cloned() {
-                                    data.append(d);
-                                }
-                            }
-                            _ => {}
-                        }
-                        idx += 1;
-                    }
-                    self.stop_listening();
-                    multi.push(CmdTask::ReturnSavedMode);
-                    return CmdTask::Multi(multi);
-                };
+                let task = self
+                    .get(&content, self.current_mode)
+                    .cloned()
+                    .map(|tasks| CmdTask::Multi(tasks))
+                    .unwrap_or(CmdTask::Null);
                 self.stop_listening();
-                CmdTask::ReturnSavedMode
+                // Always return to the saved mode after a sequence completes.
+                CmdTask::Multi(vec![CmdTask::ReturnSavedMode, task])
             }
             KeyCode::Esc => {
                 self.stop_listening();

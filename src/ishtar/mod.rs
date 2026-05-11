@@ -1,29 +1,27 @@
 mod enums;
 mod logger;
 mod widget_manager;
-mod widgets;
-use isht::{configuration::IshtarConfiguration, CmdTask, ConfigStatment};
+
+use crate::widgets::{
+    IshtarClipboard, IshtarCursor, IshtarMode, IshtarModeManager, IshtarSelectable,
+};
 use logger::{IshtarLogger, LogLevel};
 use std::{
     env,
+    error::Error,
     ops::{Deref, DerefMut},
     path::PathBuf,
-    process::ExitStatus,
 };
 use widget_manager::WidgetManager;
-use widgets::{
-    clipboard::IshtarClipboard,
-    file_manager::{FileManager, ManagingMode},
-    keybind_handler::KeybindHandler,
-    IshtarSelectable,
+
+use crate::{
+    helpers::{terminal_size, Vec2},
+    widgets::{
+        file_manager::ManagingMode,
+        CmdTask,
+    },
 };
 
-use crate::helpers::terminal_size;
-
-use self::{
-    enums::IshtarMode,
-    widgets::{command_interpreter::CommandInterpreter, writeable_area::WriteableArea},
-};
 use ratatui::{
     crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers},
     init,
@@ -31,70 +29,49 @@ use ratatui::{
     Frame,
 };
 
-///Editor instance containing all data required for working and managing buffers
+/// Main editor state: owns all widgets, the cursor, mode manager, clipboard, and logger.
 pub struct Ishtar {
-    current_path: PathBuf,
     exit: bool,
-    logger_area: IshtarLogger,
-    cursor: (usize, usize),
-    saved_cursor: (usize, usize),
-    handler: WidgetManager,
-    priority: (u8, u8), //current | saved
-    mode: IshtarMode,
-    clipboard: IshtarClipboard,
     size: (u16, u16),
+    current_path: PathBuf,
+    logger_area: IshtarLogger,
+    cursor: IshtarCursor,
+    handler: WidgetManager,
+    mode: IshtarModeManager,
+    clipboard: IshtarClipboard,
 }
+
 impl Default for Ishtar {
     fn default() -> Self {
         let size = terminal_size();
         Self {
             size,
-            current_path: env::current_dir().unwrap(),
             exit: false,
-            cursor: (0, size.1 as usize),
-            saved_cursor: (0, size.1 as usize),
-            priority: (
-                CommandInterpreter::priority_static(),
-                CommandInterpreter::priority_static(),
-            ),
+            current_path: env::current_dir().unwrap(),
+            cursor: IshtarCursor::new(),
             logger_area: IshtarLogger::new().unwrap(),
             clipboard: IshtarClipboard::new(),
-            mode: IshtarMode::Cmd,
+            mode: IshtarModeManager::new(),
             handler: WidgetManager::new(),
         }
     }
 }
 
 impl Ishtar {
-    ///Gets the configurations based on the configuration file located as
-    ///~/.config/ishtar/config.isht. If not given,
-    ///uses default.
-    pub fn get_configs() -> IshtarConfiguration {
-        let username = std::env::var("USER").unwrap();
-        let path = format!("/home/{username}/.config/ishtar/config.isht");
-        let file_path = std::path::Path::new(&path);
-        if let Ok(content) = std::fs::read_to_string(file_path) {
-            //parses the file and creates a configutation
-            IshtarConfiguration::from_content(content).unwrap()
-        } else {
-            IshtarConfiguration::new()
-        }
-    }
-
-    #[inline]
     pub fn new() -> Self {
         Self::default()
     }
 
     fn draw(&mut self, f: &mut Frame) {
         f.set_cursor_position(self.cursor_position());
-        self.render_widgets(f)
+        self.render_widgets(f);
     }
-    ///Initializes the App.
+
+    /// Initializes the terminal and runs the main event loop until the user exits.
     pub fn run(&mut self) -> std::io::Result<()> {
         let display = self.current_path.clone();
-        self.display(display.display(), logger::LogLevel::Info);
-        self.display("Initialize Process", logger::LogLevel::Info);
+        self.display(display.display(), LogLevel::Info);
+        self.display("Initialize Process", LogLevel::Info);
         let mut terminal = init();
         terminal.show_cursor()?;
         loop {
@@ -103,122 +80,69 @@ impl Ishtar {
             }
             terminal.draw(|f| self.draw(f))?;
             self.handle_event()?;
-            self.update_cursor();
         }
         ratatui::restore();
         Ok(())
     }
-    ///Sets the priority of keydown events to the given widget
+
+    /// Moves the terminal cursor to `(x, y)`.
     #[inline]
-    pub fn set_priority<T: IshtarSelectable>(&mut self) {
-        let p = T::priority_static();
-        if p != WriteableArea::priority_static()
-            && self.priority.0 == WriteableArea::priority_static()
-        {
-            self.save_position();
-        }
-        self.priority.0 = p;
+    pub fn set_cursor_at(&mut self, x: u16, y: u16) {
+        self.cursor.set_cursor(Vec2::new(x, y));
     }
 
-    ///Checks if the current priority if of the given widget
-    #[inline]
-    pub fn is_priority_of<T: IshtarSelectable>(&self) -> bool {
-        self.priority.0 == T::priority_static()
-    }
-
-    #[inline]
-    pub fn set_cursor_at(&mut self, x: usize, y: usize) {
-        self.cursor.0 = x;
-        self.cursor.1 = y;
-    }
-    ///Gets the x position of the cursor
-    fn x_cursor_position(&self) -> u16 {
-        (self.cursor.0
-            + match self.mode {
-                IshtarMode::Cmd => 0,
-                IshtarMode::Modify | IshtarMode::Selection => self.handler.writer().xoffset(),
-            }) as u16
-    }
-
+    /// Returns the cursor position as a Ratatui `Position`.
     #[inline]
     fn cursor_position(&self) -> Position {
-        Position::new(self.x_cursor_position(), self.cursor.1 as u16)
+        Position::new(self.cursor.cursor().x(), self.cursor.cursor().y())
     }
 
-    ///Updates the cursor position to be on the current active widget
-    pub fn update_cursor(&mut self) {
-        if self.is_priority_of::<FileManager>() {
-            self.cursor = self.handler.file_manager().cursor();
-            return;
-        }
-        match self.mode {
-            IshtarMode::Cmd => {
-                self.cursor.0 = self.handler.cmd().cursor();
-                self.cursor.1 = (self.size.1 - 1) as usize;
-            }
-            IshtarMode::Modify | IshtarMode::Selection => {
-                self.cursor = self.handler.writer().cursor();
-            }
-        };
-    }
-    fn change_mode(&mut self, mode: IshtarMode) {
-        self.display(
-            format!("Entering Ishtar '{mode:?}' mode"),
-            logger::LogLevel::Info,
-        );
-        match mode {
-            IshtarMode::Modify | IshtarMode::Selection => {
-                self.handler.cmd_mut().set(&format!("{mode:?}"));
-                let x = self.saved_cursor.0;
-                let y = self.saved_cursor.1;
-                let writer = self.handler.writer_mut();
-                if matches!(mode, IshtarMode::Modify) {
-                    writer.enter_writing()
-                } else {
-                    writer.enter_selection();
-                };
-                writer.set_cursor_x(x);
-                writer.set_cursor_y(y);
-                self.set_priority::<WriteableArea>();
-            }
-            IshtarMode::Cmd => {
-                self.save_position();
-                self.handler.cmd_mut().clear();
-                self.set_priority::<CommandInterpreter>();
-            }
-        }
-        self.mode = mode;
-    }
-    ///Saves the content of the current area at current_path + current_area_file
-    pub fn save_file(&self) -> std::io::Result<()> {
-        self.handler.writer().save(&self.current_path)?;
-        Ok(())
+    /// Saves the current cursor position for later restoration.
+    pub fn save_position(&mut self) {
+        self.cursor.save();
     }
 
-    pub fn mode_id(&self) -> usize {
-        match self.mode {
+    /// Returns the current mode as a `usize` index (used for keybind lookup).
+    fn mode_id(&self) -> usize {
+        match self.mode.current_mode() {
             IshtarMode::Cmd => 0,
             IshtarMode::Modify => 1,
             IshtarMode::Selection => 2,
         }
     }
 
-    ///Saves the position of the cursor based on the writer
-    pub fn save_position(&mut self) {
-        self.saved_cursor = self.handler.writer().cursor();
+    /// Transitions the editor to `mode`, updating the relevant widget state.
+    fn change_mode(&mut self, mode: IshtarMode) {
+        match mode {
+            IshtarMode::Modify | IshtarMode::Selection => {
+                self.handler.cmd_mut().set(&format!("{mode:?}"));
+                let x = self.cursor.saved_cursor().x();
+                let y = self.cursor.saved_cursor().y();
+                let writer = self.handler.writer_mut();
+                if matches!(mode, IshtarMode::Modify) {
+                    writer.enter_writing();
+                } else {
+                    writer.enter_selection();
+                }
+                writer.set_cursor_x(x as usize);
+                writer.set_cursor_y(y as usize);
+            }
+            IshtarMode::Cmd => {
+                self.save_position();
+                self.handler.cmd_mut().clear();
+            }
+        }
+        self.mode.goto_mode(mode);
     }
 
-    ///Run the given command as a child process
-    pub fn exec_cmd(&mut self, cmd: &str) -> std::io::Result<ExitStatus> {
-        std::process::Command::new(cmd)
-            .spawn()
-            .map(|mut child| child.wait())?
+    /// Saves the active buffer to `current_path / <file_name>`.
+    pub fn save_file(&self) -> std::io::Result<()> {
+        self.handler.writer().save(&self.current_path)?;
+        Ok(())
     }
 
-    ///Requests to open file searching widget. If the given parameter is given, resets the
-    ///directory
+    /// Opens the file-search widget. If `reset_dir` is `true`, resets the search root.
     pub fn request_search(&mut self, reset_dir: bool) {
-        self.set_priority::<FileManager>();
         let file_manager = self.handler.file_manager_mut();
         file_manager.mode = ManagingMode::Searching;
         if reset_dir {
@@ -227,142 +151,135 @@ impl Ishtar {
         self.handler.file_manager_mut().open();
     }
 
-    ///Requests to file search to stop
+    /// Closes the file-search widget.
     pub fn stop_search(&mut self) {
-        self.priority.0 = self.priority.1;
         self.handler.file_manager_mut().close();
     }
-    ///Some will not be handled here. Probably Req ones due to them being a request and depending
-    ///on the state of the terminal, being better to pass to a widget handle it instead
-    pub fn handle_task(&mut self, task: &CmdTask) {
+
+    /// Executes a list of tasks in order.
+    pub fn handle_tasks(&mut self, tasks: &[CmdTask]) {
+        // Collect to avoid borrow issues when tasks reference self.
+        let tasks: Vec<CmdTask> = tasks.to_vec();
+        for task in &tasks {
+            let _ = self.handle_task(task);
+        }
+    }
+
+    /// Dispatches a single `CmdTask`.
+    ///
+    /// `Null` and `Continue` are no-ops. All other variants are handled here or
+    /// delegated to the appropriate widget.
+    pub fn handle_task(&mut self, task: &CmdTask) -> Result<(), Box<dyn Error + Send + Sync>> {
         if matches!(task, CmdTask::Null | CmdTask::Continue) {
-            return;
-        };
-        self.display(format!("{:?}", task), LogLevel::Info);
+            return Ok(());
+        }
+        self.display(format!("{task:?}"), LogLevel::Info);
         match task {
-            CmdTask::SaveMode => self.priority.1 = self.priority.0,
-            CmdTask::ReturnSavedMode => {
-                self.priority.0 = self.priority.1;
-                self.change_mode(self.mode.clone()); //Assert it enters the mode again;
-            }
-            CmdTask::SetPriority(n) => self.priority.0 = *n,
-            CmdTask::CopySelection | CmdTask::CopyToSys | CmdTask::CopyToEditor => {
-                let data = self.handler.writer_mut().get_selection();
-                if let Some(data) = data {
-                    if matches!(task, CmdTask::CopyToSys | CmdTask::CopySelection) {
-                        self.clipboard.set(data);
-                    } else {
-                        self.clipboard.set_virtual(data);
-                    };
+            CmdTask::SaveMode => self.mode.save_mode(),
+            CmdTask::ReturnSavedMode => self.mode.goto_saved(),
+
+            CmdTask::CopyToSys | CmdTask::CopyToEditor => {
+                let Some(data) = self.handler.writer_mut().get_selection() else {
+                    self.handle_task(&CmdTask::EnterModify)?;
+                    return Ok(());
+                };
+                match task {
+                    CmdTask::CopyToSys => {
+                        self.clipboard.set(data)?;
+                    }
+                    _ => self.clipboard.set_virtual(data),
                 }
-                self.handle_task(&CmdTask::EnterModify);
+                self.handle_task(&CmdTask::EnterModify)?;
             }
+
             CmdTask::SelectLine => {
                 self.handler.writer_mut().goto_init_of_line();
                 self.change_mode(IshtarMode::Selection);
                 self.handler.writer_mut().goto_end_of_line();
             }
+
             CmdTask::PasteSys | CmdTask::PasteEditor => {
                 let content = if matches!(task, CmdTask::PasteEditor) {
                     self.clipboard.get_virtual().clone()
                 } else {
-                    self.clipboard.get()
+                    self.clipboard.get()?
                 };
                 let data = self.handler.writer_mut().paste(&content);
-                self.handle_task(&data);
+                self.handle_task(&data)?;
             }
 
             CmdTask::DeleteLine => self.handler.writer_mut().delete_line(),
 
             CmdTask::SavePos => self.save_position(),
-            CmdTask::MoveSaved => self.set_cursor_at(self.saved_cursor.0, self.saved_cursor.1),
+            CmdTask::MoveSaved => self.cursor.goto_saved(),
 
             CmdTask::Write(content) => {
                 self.handler.writer_mut().paste(content);
             }
-            CmdTask::CreateWindow => {
-                self.handler.writer_mut().create_area();
-            }
+            CmdTask::CreateWindow => self.handler.writer_mut().create_area(),
             CmdTask::DeleteWindow => {
                 self.handler.writer_mut().delete_current_area();
             }
             CmdTask::SetWindowUp => self.handler.writer_mut().set_focus_back(),
             CmdTask::SetWindowDown => self.handler.writer_mut().set_focus_next(),
 
-            CmdTask::ExecCmd(cmd) => {
-                let _ = self.exec_cmd(cmd);
-            }
-            CmdTask::ExecutePrompt(prompt) => {
-                self.handler.cmd_mut().execute_cmd(prompt);
-            }
             CmdTask::MoveIOL => self.handler.writer_mut().goto_init_of_line(),
             CmdTask::MoveEOL => self.handler.writer_mut().goto_end_of_line(),
             CmdTask::MoveIOB => self.handler.writer_mut().goto_init_of_file(),
             CmdTask::MoveEOB => self.handler.writer_mut().goto_end_of_file(),
             CmdTask::MoveToLine(n) => self.handler.writer_mut().move_y(*n as i16),
             CmdTask::MoveToRow(n) => self.handler.writer_mut().move_x(*n as i16),
+
             CmdTask::EnterNormal => self.change_mode(IshtarMode::Cmd),
             CmdTask::EnterModify => self.change_mode(IshtarMode::Modify),
             CmdTask::EnterSelection => self.change_mode(IshtarMode::Selection),
 
-            CmdTask::ModifyFile(f) => {
-                self.handler.writer_mut().open_file(f.into());
-            }
+            CmdTask::ModifyFile(f) => self.handler.writer_mut().open_file(f.into()),
+
             CmdTask::SaveFile => {
                 if self.handler.writer().file_name().is_some() {
-                    self.handler.writer().save(&self.current_path).unwrap();
+                    self.handler.writer().save(&self.current_path)?;
                 } else {
-                    self.set_priority::<CommandInterpreter>();
                     self.handler
                         .cmd_mut()
                         .request_data("Give the file a name ", CmdTask::ReqSaveFile);
-                };
+                }
             }
             CmdTask::SaveFileAs(msg) => {
                 let writer = self.handler.writer_mut();
                 writer.modify_file_name(msg);
-                writer.save(&self.current_path).unwrap();
+                writer.save(&self.current_path)?;
             }
+
             CmdTask::Multi(tasks) => {
                 for task in tasks {
-                    self.handle_task(task);
+                    self.handle_task(task)?;
                 }
             }
-            CmdTask::Log(s) => {
-                self.display(s, logger::LogLevel::Info);
-            }
-            CmdTask::Warn(s) => {
-                self.display(s, logger::LogLevel::Warn);
-            }
-            CmdTask::ReqSearchCurr => self.request_search(false),
+
+            CmdTask::Log(s) => { self.display(s, LogLevel::Info); }
+            CmdTask::Warn(s) => { self.display(s, LogLevel::Warn); }
+
             CmdTask::ReqSearchRoot => self.request_search(true),
+            CmdTask::Reset => {
+                self.handler.writer_mut().reset();
+            }
             CmdTask::StopSearch => self.stop_search(),
             CmdTask::Exit => self.exit = true,
-            e => panic!("Must implement {e:?} or should not be here"),
-        }
-    }
 
-    fn handle_tasks(&mut self, tasks: &Vec<ConfigStatment>) {
-        for task in tasks {
-            match task {
-                ConfigStatment::Task(t) => self.handle_task(t),
-                ConfigStatment::Cmd(c) => {
-                    if let Some(tasks) = self.handler.keybind().get(c, self.mode_id()) {
-                        self.handle_tasks(&tasks.clone());
-                    }
-                }
-                _ => {}
+            // Tasks that are handled by widgets directly or not yet implemented.
+            other => {
+                self.display(format!("Unhandled task: {other:?}"), LogLevel::Warn);
             }
         }
+        Ok(())
     }
 
-    ///Handles keybind input. Returns CmdTask::Null if the caller, handler_key, must stop its
-    ///execution; CmdTask::Continue otherwhite
-    ///The returned task does not have relationship with the modification made.
+    /// Checks whether a modifier-initiated keybind sequence should start.
+    ///
+    /// Returns `CmdTask::Null` if the event was consumed, `CmdTask::Continue` otherwise.
     fn should_init_keybind(&mut self, key: KeyEvent) -> CmdTask {
-        // If got modifier start listening
         if !key.modifiers.is_empty() && !self.handler.keybind().listening() {
-            self.set_priority::<KeybindHandler>();
             self.handler
                 .keybind_mut()
                 .start_listening(key.code, key.modifiers);
@@ -378,51 +295,45 @@ impl Ishtar {
             }
             return CmdTask::Null;
         }
-        //Dont input but listens to key
-        if self.is_priority_of::<KeybindHandler>() {
-            self.handler.keybind_mut().current_mode = self.mode_id();
-            match self.handler.keybind_mut().keydown(key.code) {
-                CmdTask::Null => return CmdTask::Null,
-                CmdTask::Continue => return CmdTask::Continue,
-                task => self.handle_task(&task),
-            }
-        }
         CmdTask::Continue
     }
 
+    /// Routes a key event to the focused widget and updates cursor state.
     fn handle_key(&mut self, key: KeyEvent) {
+        // Uppercase letters in Modify mode are written directly.
         if let KeyCode::Char(c) = key.code {
-            if self.is_priority_of::<WriteableArea>()
-                && c.is_uppercase()
-                && key.modifiers == KeyModifiers::SHIFT
-            {
+            if c.is_uppercase() && key.modifiers == KeyModifiers::SHIFT {
                 self.handler.writer_mut().write_char(c);
                 return;
             }
         }
-        if !self.is_priority_of::<FileManager>() {
-            if let CmdTask::Null = self.should_init_keybind(key) {
-                return;
-            }
-        }
-        let widget = self.handler.find_widget_mut(self.priority.0);
-        let task = widget.keydown(key.code);
-        self.handle_task(&task);
-        match self.mode {
-            IshtarMode::Modify | IshtarMode::Selection => {
-                self.cursor = self.handler.writer().cursor();
-            }
 
-            _ => {}
+        if let CmdTask::Null = self.should_init_keybind(key) {
+            return;
+        }
+
+        let task = self.handler.writer_mut().keydown(key.code);
+        let _ = self.handle_task(&task);
+
+        // Keep cursor in sync with the text area after every keystroke.
+        if matches!(
+            self.mode.current_mode(),
+            IshtarMode::Modify | IshtarMode::Selection
+        ) {
+            let (cx, cy) = self.handler.writer().cursor();
+            self.cursor.set_cursor(Vec2::new(cx as u16, cy as u16));
         }
     }
 
+    /// Reads one terminal event and dispatches it.
     pub fn handle_event(&mut self) -> std::io::Result<()> {
         if let event::Event::Key(k) = event::read()? {
             self.handle_key(k);
         }
         Ok(())
     }
+
+    /// Renders all widgets that report `can_render() == true`.
     pub fn render_widgets(&mut self, frame: &mut Frame) {
         let area = frame.area();
         for i in 0..self.handler.widgets.len() {

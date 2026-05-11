@@ -4,12 +4,14 @@ use std::{
     sync::Arc,
 };
 
-use isht::CmdTask;
-use ratatui::{buffer::Buffer, crossterm::event::KeyCode, prelude::Rect, widgets::Widget, Frame};
+use ratatui::{crossterm::event::KeyCode, prelude::Rect, widgets::Widget, Frame};
 
-use crate::helpers::AreaOrder;
+use crate::{
+    helpers::AreaOrder,
+    widgets::{CmdTask, IshtarSelectable},
+};
 
-use super::{text_area::TextArea, IshtarSelectable};
+use super::text_area::TextArea;
 #[derive(Debug)]
 pub struct WriteableArea {
     writers: Vec<TextArea>,
@@ -166,16 +168,7 @@ impl DerefMut for WriteableArea {
     }
 }
 impl IshtarSelectable for WriteableArea {
-    fn priority_static() -> u8
-    where
-        Self: Sized,
-    {
-        1
-    }
-    fn priority(&self) -> u8 {
-        1
-    }
-    fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> isht::CmdTask {
+    fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> CmdTask {
         match key {
             KeyCode::Esc => return CmdTask::EnterNormal,
             KeyCode::Char(c) => self.write_char(c),
