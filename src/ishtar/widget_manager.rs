@@ -1,9 +1,9 @@
 use crate::helpers::terminal_size;
 
 use crate::widgets::{
+    CommandInterpreter, FocusSide, IshtarSelectable, WriteableArea,
     file_manager::FileManager,
     keybind_handler::{KeybindHandler, Keybinds},
-    CommandInterpreter, FocusSide, IshtarSelectable, WriteableArea,
 };
 
 use super::Ishtar;
@@ -143,6 +143,15 @@ impl WidgetManager {
     pub fn writer_mut(&mut self) -> &mut WriteableArea {
         self.get_widget_mut::<WriteableArea>()
             .expect("WriteableArea not found")
+    }
+
+    pub fn set_focus_to<T: IshtarSelectable>(&mut self) {
+        let id = self
+            .widgets
+            .iter()
+            .position(|p| p.downcast_ref::<T>().is_some())
+            .unwrap_or(2);
+        self.focused = id; //3 == command interpreter
     }
 
     /// Convenience accessor for the command interpreter.

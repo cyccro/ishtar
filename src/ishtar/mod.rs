@@ -2,7 +2,9 @@ mod logger;
 mod tasks;
 mod widget_manager;
 
-use crate::widgets::{IshtarClipboard, IshtarCursor, IshtarMode, IshtarModeManager};
+use crate::widgets::{
+    CommandInterpreter, IshtarClipboard, IshtarCursor, IshtarMode, IshtarModeManager,
+};
 use logger::{IshtarLogger, LogLevel};
 use std::{
     env,
@@ -122,6 +124,7 @@ impl Ishtar {
             IshtarMode::Cmd => {
                 self.save_position();
                 self.widgets_manager.cmd_mut().clear();
+                self.widgets_manager.set_focus_to::<CommandInterpreter>();
             }
         }
         self.mode.goto_mode(mode);
@@ -213,18 +216,6 @@ impl Ishtar {
         // Plugin keybind sequences take priority.
         if self.handle_plugin_keybind(key) {
             return;
-        }
-
-        // Uppercase+shift writes directly, bypassing keybinds,
-        // but only when the text editor (widget 0) is focused.
-        if self.widgets_manager.focused == 0 {
-            if let KeyCode::Char(c) = key.code {
-                if c.is_uppercase() && key.modifiers == KeyModifiers::SHIFT {
-                    self.widgets_manager.writer_mut().write_char(c);
-                    self.sync_cursor();
-                    return;
-                }
-            }
         }
 
         if let CmdTask::Null = self.should_init_keybind(key) {
