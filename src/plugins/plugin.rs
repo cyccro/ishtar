@@ -4,18 +4,30 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use wasmtime::{Caller, Engine, Instance, Linker, Module, Store};
 
-/// Serialisable command a plugin can return via `host_execute`.
+/// A command a plugin emits via the `execute` host function.
+///
+/// The plugin serialises a `Vec<PluginCmd>` with postcard and calls
+/// `execute(ptr, len)`. The host deserialises and converts each to a
+/// `CmdTask` for execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PluginCmd {
+    /// No operation.
     Null,
+    /// Close the editor.
     Exit,
+    /// Insert text at the current cursor position.
     Write(String),
 }
 
-/// A keybind registration sent from a plugin via postcard-serialized bytes.
+/// A keybind registration the plugin sends during `init()`.
+///
+/// The plugin serialises this with postcard and calls
+/// `register_keybind(ptr, len)`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeybindRegistration {
+    /// Key sequence pattern, e.g. `"space+e"`. Joined with `+`.
     pub pattern: String,
+    /// Opaque identifier passed back in `handle_command(callback_id)`.
     pub callback_id: u32,
 }
 
@@ -28,11 +40,15 @@ impl PluginId {
     }
 }
 
-/// Per-plugin state stored in the wasmtime `Store`.
+/// Per-plugin state stored inside the wasmtime `Store`.
+///
+/// Holds the keybind map populated by `register_keybind` calls from the
+/// plugin, and the command buffer written by `execute` calls.
 pub struct PluginState {
     plugin_id: PluginId,
     keybinds: HashMap<String, u32>,
-    /// Commands emitted by the plugin during `handle_command`, read after the call returns.
+    /// Commands written by the plugin during `handle_command`, consumed
+    /// by the host after the call returns.
     pending_cmds: Vec<PluginCmd>,
 }
 
@@ -54,6 +70,10 @@ impl PluginState {
     }
 }
 
+/// A single loaded WASM plugin instance.
+///
+/// Wraps a wasmtime `Instance` and `Store<PluginState>` and provides
+/// typed access to the plugin's exported functions.
 pub struct LoadedPlugin {
     id: PluginId,
     instance: Instance,
@@ -62,6 +82,11 @@ pub struct LoadedPlugin {
 }
 
 impl LoadedPlugin {
+    /// Load a `.wasm` file and instantiate it with host function imports.
+    ///
+    /// Creates a linker registering the two host functions
+    /// (`"host".register_keybind` and `"host".execute`), instantiates
+    /// the module, and returns the loaded plugin ready for `init()`.
     pub fn new(id: PluginId, engine: &Engine, path: &Path) -> Result<Self, wasmtime::Error> {
         let module = Module::from_file(engine, path)?;
         let mut store = Store::new(engine, PluginState::new(id));

@@ -1,16 +1,15 @@
-Error: . Sent at 2026-05-11 22:34:18.122565325 -03:00
-Info: /home/caina/programming/ishtar; at 2026-05-12T01:34:18.122645294
-Info: Initialize Process; at 2026-05-12T01:34:18.122650383
-Info: EnterNormal; at 2026-05-12T01:34:21.079015040
-Info: Write("plum! "); at 2026-05-12T01:34:21.751044699
-Info: Exit; at 2026-05-12T01:34:21.751093650
-3.922594051
-Info: EnterModify; at 2026-05-12T01:28:55.474533596
-Info: EnterNormal; at 2026-05-12T01:28:57.994931752
-Info: EnterModify; at 2026-05-12T01:29:00.147446126
-Info: EnterNormal; at 2026-05-12T01:29:00.890422172
-Info: EnterSelection; at 2026-05-12T01:29:01.170437244
-Info: EnterNormal; at 2026-05-12T01:29:09.050624049
-Info: EnterModify; at 2026-05-12T01:29:09.450404892
+Error: . Sent at 2026-05-11 22:36:28.145920426 -03:00
+Info: /home/caina/programming/ishtar; at 2026-05-12T01:36:28.146100551
+Info: Initialize Process; at 2026-05-12T01:36:28.146108996
+Info: EnterNormal; at 2026-05-12T01:36:30.636595521
+Info: Write("plum! "); at 2026-05-12T01:36:31.213170309
+Info: Write("plum! "); at 2026-05-12T01:36:32.164637266
+Info: Write("plum! "); at 2026-05-12T01:36:32.693100175
+Info: Write("plum! "); at 2026-05-12T01:39:22.561705309
+Info: Write("plum! "); at 2026-05-12T01:39:22.898085332
+Info: Write("plum! "); at 2026-05-12T01:39:23.154135258
+Info: Write("plum! "); at 2026-05-12T01:39:23.401842431
+Info: Exit; at 2026-05-12T01:39:25.761999223
+erModify; at 2026-05-12T01:29:09.450404892
 Info: EnterNormal; at 2026-05-12T01:29:11.298621560
 Info: Exit; at 2026-05-12T01:29:15.090504962

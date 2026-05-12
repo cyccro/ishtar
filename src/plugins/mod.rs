@@ -3,6 +3,11 @@ pub use plugin::*;
 use std::path::{Path, PathBuf};
 use wasmtime::{Config, Engine, Store};
 
+/// Manages all loaded WASM plugins.
+///
+/// Scans a directory for `*.wasm` files, instantiates each one with
+/// wasmtime, calls `init()` to let plugins register keybinds, and
+/// dispatches keybind sequences to the owning plugin.
 pub struct PluginManager {
     engine: Engine,
     plugins: Vec<LoadedPlugin>,

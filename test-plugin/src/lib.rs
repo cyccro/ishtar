@@ -45,7 +45,7 @@ pub extern "C" fn handle_command(callback_id: u32) {
     if callback_id != 0 {
         return;
     }
-    let cmds = vec![PluginCmd::Write("plum! ".into()), PluginCmd::Exit];
+    let cmds = vec![PluginCmd::Write("plum! ".into())];
     unsafe {
         let buf: &mut [u8] = &mut BUF;
         let slice = postcard::to_slice(&cmds, buf).unwrap();
