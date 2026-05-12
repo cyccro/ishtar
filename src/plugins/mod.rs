@@ -7,6 +7,7 @@ pub struct PluginManager {
     engine: Engine,
     plugins: Vec<LoadedPlugin>,
 }
+
 impl PluginManager {
     pub fn config() -> Config {
         let mut config = Config::new();
@@ -23,7 +24,7 @@ impl PluginManager {
         Ok(this)
     }
 
-    ///Creates a store for a plugin
+    /// Creates a store for a plugin.
     pub fn create_store(&self) -> Store<PluginState> {
         Store::new(
             &self.engine,
@@ -45,10 +46,30 @@ impl PluginManager {
                     &self.engine,
                     &path.path(),
                 )
-                && let Ok(_) = plugin.execute_func::<_, ()>("init", ())
+                && let Ok(_) = plugin.execute_func::<(), ()>("init", ())
             {
                 self.plugins.push(plugin);
             }
         }
+    }
+
+    /// Returns `true` if any loaded plugin registered a keybind that starts with `prefix`.
+    pub fn has_prefix(&self, prefix: &str) -> bool {
+        self.plugins
+            .iter()
+            .any(|p| p.keybinds().keys().any(|k| k.starts_with(prefix)))
+    }
+
+    /// Tries to dispatch a keybind sequence to the owning plugin.
+    /// Returns the commands the plugin emitted, or `None` if no match.
+    pub fn dispatch(&mut self, sequence: &str) -> Option<Vec<PluginCmd>> {
+        let idx = self
+            .plugins
+            .iter()
+            .position(|p| p.keybinds().contains_key(sequence))?;
+        let callback_id = *self.plugins[idx].keybinds().get(sequence)?;
+        self.plugins[idx]
+            .handle_command(callback_id)
+            .ok()
     }
 }

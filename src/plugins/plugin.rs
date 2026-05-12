@@ -4,16 +4,18 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use wasmtime::{Caller, Engine, Instance, Linker, Module, Store};
 
+/// Serialisable command a plugin can return via `host_execute`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PluginCmd {
+    Null,
+    Exit,
+    Write(String),
+}
+
 /// A keybind registration sent from a plugin via postcard-serialized bytes.
-///
-/// The plugin writes this into WASM linear memory and calls the host function
-/// `register_keybind` with a pointer + length. The host deserializes it and
-/// stores the mapping.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeybindRegistration {
-    /// Key sequence pattern, e.g. `"space+e"`.
     pub pattern: String,
-    /// Opaque identifier the plugin uses to dispatch this binding in `handle_command`.
     pub callback_id: u32,
 }
 
@@ -26,9 +28,12 @@ impl PluginId {
     }
 }
 
+/// Per-plugin state stored in the wasmtime `Store`.
 pub struct PluginState {
     plugin_id: PluginId,
     keybinds: HashMap<String, u32>,
+    /// Commands emitted by the plugin during `handle_command`, read after the call returns.
+    pending_cmds: Vec<PluginCmd>,
 }
 
 impl PluginState {
@@ -36,11 +41,16 @@ impl PluginState {
         Self {
             plugin_id: id,
             keybinds: HashMap::new(),
+            pending_cmds: Vec::new(),
         }
     }
 
     pub fn keybinds(&self) -> &HashMap<String, u32> {
         &self.keybinds
+    }
+
+    pub fn drain_pending(&mut self) -> Vec<PluginCmd> {
+        std::mem::take(&mut self.pending_cmds)
     }
 }
 
@@ -58,8 +68,7 @@ impl LoadedPlugin {
 
         let mut linker = Linker::<PluginState>::new(engine);
 
-        // Host function: register_keybind(ptr: i32, len: i32) -> i32
-        // Reads postcard-serialized KeybindRegistration from WASM memory.
+        // Host function: register_keybind(ptr, len) -> i32
         linker.func_wrap(
             "host",
             "register_keybind",
@@ -87,6 +96,32 @@ impl LoadedPlugin {
             },
         )?;
 
+        // Host function: execute(ptr, len) -> i32
+        // Plugin calls this from inside handle_command to emit serialised PluginCmds.
+        linker.func_wrap(
+            "host",
+            "execute",
+            |mut caller: Caller<'_, PluginState>, ptr: i32, len: i32| -> i32 {
+                let memory = match caller.get_export("memory") {
+                    Some(wasmtime::Extern::Memory(m)) => m,
+                    _ => return -1,
+                };
+                let data = memory.data(&caller);
+                let Some(bytes) = data
+                    .get(ptr as usize..)
+                    .and_then(|d| d.get(..len as usize))
+                else {
+                    return -1;
+                };
+                let cmds: Vec<PluginCmd> = match postcard::from_bytes(bytes) {
+                    Ok(c) => c,
+                    Err(_) => return -1,
+                };
+                caller.data_mut().pending_cmds = cmds;
+                0
+            },
+        )?;
+
         let instance = linker.instantiate(&mut store, &module)?;
 
         Ok(Self {
@@ -110,6 +145,13 @@ impl LoadedPlugin {
             .instance
             .get_typed_func::<Args, Results>(&mut self.store, name)?;
         f.call(&mut self.store, args)
+    }
+
+    /// Call the plugin's exported `handle_command(callback_id)`.
+    /// Returns the commands the plugin emitted via `host_execute`.
+    pub fn handle_command(&mut self, callback_id: u32) -> Result<Vec<PluginCmd>, wasmtime::Error> {
+        self.execute_func::<(u32,), ()>("handle_command", (callback_id,))?;
+        Ok(self.store.data_mut().drain_pending())
     }
 
     pub fn keybinds(&self) -> &HashMap<String, u32> {
