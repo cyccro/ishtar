@@ -1,7 +1,10 @@
-Error: When reading path "./plugin/test_plugin.wasm", received: unknown import: `env::host_execute` has not been defined. Sent at 2026-05-11 22:28:51.812964447 -03:00
-Info: /home/caina/programming/ishtar; at 2026-05-12T01:28:51.813044806
-Info: Initialize Process; at 2026-05-12T01:28:51.813049555
-Info: EnterNormal; at 2026-05-12T01:28:53.922594051
+Error: . Sent at 2026-05-11 22:34:18.122565325 -03:00
+Info: /home/caina/programming/ishtar; at 2026-05-12T01:34:18.122645294
+Info: Initialize Process; at 2026-05-12T01:34:18.122650383
+Info: EnterNormal; at 2026-05-12T01:34:21.079015040
+Info: Write("plum! "); at 2026-05-12T01:34:21.751044699
+Info: Exit; at 2026-05-12T01:34:21.751093650
+3.922594051
 Info: EnterModify; at 2026-05-12T01:28:55.474533596
 Info: EnterNormal; at 2026-05-12T01:28:57.994931752
 Info: EnterModify; at 2026-05-12T01:29:00.147446126
