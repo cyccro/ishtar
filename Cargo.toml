@@ -16,5 +16,6 @@ gapbuf = "0.1.4"
 downcast-rs = "2.0.1"
 tachyonfx = "0.10.1"
 wasmtime = "44.0.1"
+serde = { version = "1", features = ["derive"] }
 postcard = "1.1.3"
 

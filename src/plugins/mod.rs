@@ -1,25 +1,12 @@
+mod plugin;
+pub use plugin::*;
 use std::path::Path;
-
-use wasmtime::{Config, Engine, Instance, Module, Store};
-
-pub struct PluginId(usize);
-
-pub struct PluginState {
-    plugin_id: usize,
-}
-
-pub struct LoadedPlugin {
-    id: PluginId,
-    instance: Instance,
-    store: Store<PluginState>,
-    module: Module,
-}
+use wasmtime::{Config, Engine, Store};
 
 pub struct PluginManager {
     engine: Engine,
     plugins: Vec<LoadedPlugin>,
 }
-
 impl PluginManager {
     pub fn config() -> Config {
         let mut config = Config::new();
@@ -37,8 +24,11 @@ impl PluginManager {
     }
 
     ///Creates a store for a plugin
-    pub fn create_store(&self) -> Store<PluginState>{
-        Store::new(&self.engine, PluginState { plugin_id: self.plugins.len() })
+    pub fn create_store(&self) -> Store<PluginState> {
+        Store::new(
+            &self.engine,
+            PluginState::new(PluginId::new(self.plugins.len())),
+        )
     }
 
     pub fn load_plgins(&mut self, plugins_path: &Path) {
@@ -49,17 +39,14 @@ impl PluginManager {
             let Ok(path) = entry else {
                 continue;
             };
-            if matches!(path.path().extension(), Some(ext) if ext == "wasm") && let Ok(module) = Module::from_file(&self.engine, path.path()) {
-                let mut store = self.create_store();
-                let Ok(instance) = Instance::new(&mut store, &module, &[]) else {
-                    continue;
-                };
-                let plugin = LoadedPlugin {
-                    id: PluginId(self.plugins.len()),
-                    instance,
-                    store,
-                    module
-                };
+            if matches!(path.path().extension(), Some(ext) if ext == "wasm")
+                && let Ok(mut plugin) = LoadedPlugin::new(
+                    PluginId::new(self.plugins.len()),
+                    &self.engine,
+                    &path.path(),
+                )
+                && let Ok(_) = plugin.execute_func::<_, ()>("init", ())
+            {
                 self.plugins.push(plugin);
             }
         }

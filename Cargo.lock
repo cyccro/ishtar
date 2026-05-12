@@ -998,6 +998,7 @@ dependencies = [
  "gapbuf",
  "postcard",
  "ratatui",
+ "serde",
  "tachyonfx",
  "tree-sitter",
  "tree-sitter-highlight",
