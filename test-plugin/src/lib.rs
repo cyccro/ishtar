@@ -16,8 +16,7 @@ enum PluginCmd {
 }
 
 extern "C" {
-    fn host_register_keybind(ptr: *const u8, len: u32) -> i32;
-    fn host_execute(ptr: *const u8, len: u32) -> i32;
+    fn register_keybind(ptr: *const u8, len: u32) -> i32;
 }
 
 /// Scratch buffer for serialization (max 4 KiB).
@@ -50,9 +49,5 @@ pub extern "C" fn handle_command(callback_id: u32) {
     }
     let cmds = vec![PluginCmd::Exit];
     let buf = unsafe { &mut BUF };
-    if let Ok(slice) = postcard::to_slice(&cmds, buf) {
-        unsafe {
-            host_execute(slice.as_ptr(), slice.len() as u32);
-        }
-    }
+    if let Ok(slice) = postcard::to_slice(&cmds, buf) {}
 }

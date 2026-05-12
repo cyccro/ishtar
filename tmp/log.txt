@@ -1,15 +1,13 @@
-Info: /home/caina/programming/ishtar; at 2026-05-12T01:10:19.485561162
-Info: Initialize Process; at 2026-05-12T01:10:19.485597770
-Info: EnterNormal; at 2026-05-12T01:10:20.271405335
-Info: Reset; at 2026-05-12T01:10:32.974782509
-Info: Reset; at 2026-05-12T01:10:34.830724977
-Info: Exit; at 2026-05-12T01:10:35.790721974
-00:59:03.916499547
-Info: EnterNormal; at 2026-05-12T00:59:05.475809842
-Info: EnterNormal; at 2026-05-12T00:59:05.603380006
-Info: EnterNormal; at 2026-05-11T21:42:33.482572396
-Info: EnterNormal; at 2026-05-11T21:42:34.498462545
-Info: EnterNormal; at 2026-05-11T21:42:34.610458636
-Info: EnterNormal; at 2026-05-11T21:42:36.658448934
-Info: EnterNormal; at 2026-05-11T21:42:37.698500942
-Info: EnterNormal; at 2026-05-11T21:42:37.818674403
+Error: When reading path "./plugin/test_plugin.wasm", received: unknown import: `env::host_execute` has not been defined. Sent at 2026-05-11 22:28:51.812964447 -03:00
+Info: /home/caina/programming/ishtar; at 2026-05-12T01:28:51.813044806
+Info: Initialize Process; at 2026-05-12T01:28:51.813049555
+Info: EnterNormal; at 2026-05-12T01:28:53.922594051
+Info: EnterModify; at 2026-05-12T01:28:55.474533596
+Info: EnterNormal; at 2026-05-12T01:28:57.994931752
+Info: EnterModify; at 2026-05-12T01:29:00.147446126
+Info: EnterNormal; at 2026-05-12T01:29:00.890422172
+Info: EnterSelection; at 2026-05-12T01:29:01.170437244
+Info: EnterNormal; at 2026-05-12T01:29:09.050624049
+Info: EnterModify; at 2026-05-12T01:29:09.450404892
+Info: EnterNormal; at 2026-05-12T01:29:11.298621560
+Info: Exit; at 2026-05-12T01:29:15.090504962

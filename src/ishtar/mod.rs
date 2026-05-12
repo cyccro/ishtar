@@ -3,7 +3,7 @@ mod tasks;
 mod widget_manager;
 
 use crate::widgets::{
-    CommandInterpreter, IshtarClipboard, IshtarCursor, IshtarMode, IshtarModeManager,
+    CommandInterpreter, IshtarClipboard, IshtarCursor, IshtarMode, IshtarModeManager, WriteableArea,
 };
 use logger::{IshtarLogger, LogLevel};
 use std::{
@@ -21,7 +21,7 @@ use crate::{
 
 use ratatui::{
     Frame,
-    crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers},
+    crossterm::event::{self, KeyCode, KeyEvent},
     init,
     layout::Position,
 };
@@ -35,14 +35,14 @@ pub struct Ishtar {
     widgets_manager: WidgetManager,
     mode: IshtarModeManager,
     clipboard: IshtarClipboard,
-    plugin_manager: Option<PluginManager>,
+    plugin_manager: PluginManager,
     /// Accumulated key sequence for plugin keybinds (space leader).
     plugin_seq: Option<Vec<String>>,
 }
 
 impl Default for Ishtar {
     fn default() -> Self {
-        let pm = PluginManager::new(Path::new("./plugin")).ok();
+        let pm = PluginManager::new().unwrap();
         Self {
             exit: false,
             current_path: env::current_dir().unwrap(),
@@ -59,7 +59,15 @@ impl Default for Ishtar {
 
 impl Ishtar {
     pub fn new() -> Self {
-        Self::default()
+        let mut out = Self::default();
+        let errors = out.plugin_manager.load_plgins(Path::new("./plugin"));
+        for (error, path) in errors {
+            out.logger_area
+                .queue(&format!("When reading path {path:?}, received: {error:?}"));
+        }
+        out.logger_area.flush(LogLevel::Error);
+
+        out
     }
 
     fn draw(&mut self, f: &mut Frame) {
@@ -120,6 +128,7 @@ impl Ishtar {
                 }
                 writer.set_cursor_x(x as usize);
                 writer.set_cursor_y(y as usize);
+                self.widgets_manager.set_focus_to::<WriteableArea>();
             }
             IshtarMode::Cmd => {
                 self.save_position();
@@ -173,9 +182,6 @@ impl Ishtar {
     /// Checks for plugin keybind sequences (space leader).
     /// Returns `true` if the event was consumed.
     fn handle_plugin_keybind(&mut self, key: KeyEvent) -> bool {
-        let Some(pm) = &mut self.plugin_manager else {
-            return false;
-        };
         // Don't capture in insert mode so typing still works.
         if matches!(self.mode.current_mode(), IshtarMode::Modify) {
             return false;
@@ -185,7 +191,7 @@ impl Ishtar {
             let s = Self::key_to_string(key.code);
             seq.push(s);
             let joined = seq.join("+");
-            if let Some(cmds) = pm.dispatch(&joined) {
+            if let Some(cmds) = self.plugin_manager.dispatch(&joined) {
                 self.plugin_seq = None;
                 for pc in cmds {
                     if let Some(task) = Self::plugin_cmd_to_task(pc) {
@@ -194,7 +200,7 @@ impl Ishtar {
                 }
                 return true;
             }
-            if !pm.has_prefix(&joined) {
+            if !self.plugin_manager.has_prefix(&joined) {
                 self.plugin_seq = None; // dead sequence
             }
             return true;
@@ -203,7 +209,7 @@ impl Ishtar {
         // Only start a sequence on space (leader key).
         if key.code == KeyCode::Char(' ') && key.modifiers.is_empty() {
             let s = Self::key_to_string(key.code);
-            if pm.has_prefix(&s) {
+            if self.plugin_manager.has_prefix(&s) {
                 self.plugin_seq = Some(vec![s]);
                 return true;
             }

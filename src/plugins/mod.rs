@@ -1,6 +1,6 @@
 mod plugin;
 pub use plugin::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use wasmtime::{Config, Engine, Store};
 
 pub struct PluginManager {
@@ -15,12 +15,11 @@ impl PluginManager {
         config
     }
 
-    pub fn new(path: &Path) -> Result<Self, wasmtime::Error> {
-        let mut this = Self {
+    pub fn new() -> Result<Self, wasmtime::Error> {
+        let this = Self {
             engine: Engine::new(&Self::config())?,
             plugins: Vec::new(),
         };
-        this.load_plgins(path);
         Ok(this)
     }
 
@@ -32,25 +31,38 @@ impl PluginManager {
         )
     }
 
-    pub fn load_plgins(&mut self, plugins_path: &Path) {
+    pub fn load_plgins(&mut self, plugins_path: &Path) -> Vec<(wasmtime::Error, PathBuf)> {
         let Ok(entries) = std::fs::read_dir(plugins_path) else {
-            return;
+            return vec![];
         };
+        let mut out = Vec::new();
         for entry in entries {
             let Ok(path) = entry else {
                 continue;
             };
-            if matches!(path.path().extension(), Some(ext) if ext == "wasm")
-                && let Ok(mut plugin) = LoadedPlugin::new(
+            if matches!(path.path().extension(), Some(ext) if ext == "wasm") {
+                let mut plugin = match LoadedPlugin::new(
                     PluginId::new(self.plugins.len()),
                     &self.engine,
                     &path.path(),
-                )
-                && let Ok(_) = plugin.execute_func::<(), ()>("init", ())
-            {
+                ) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        out.push((e, path.path()));
+                        continue;
+                    }
+                };
+                match plugin.execute_func::<(), ()>("init", ()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        out.push((e, path.path()));
+                        continue;
+                    }
+                }
                 self.plugins.push(plugin);
             }
         }
+        out
     }
 
     /// Returns `true` if any loaded plugin registered a keybind that starts with `prefix`.
@@ -68,8 +80,6 @@ impl PluginManager {
             .iter()
             .position(|p| p.keybinds().contains_key(sequence))?;
         let callback_id = *self.plugins[idx].keybinds().get(sequence)?;
-        self.plugins[idx]
-            .handle_command(callback_id)
-            .ok()
+        self.plugins[idx].handle_command(callback_id).ok()
     }
 }
