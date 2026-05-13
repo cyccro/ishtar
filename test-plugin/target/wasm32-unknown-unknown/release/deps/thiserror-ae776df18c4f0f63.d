@@ -1,0 +1,14 @@
+/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/deps/thiserror-ae776df18c4f0f63.d: /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/thiserror-046ce482b5328581/out/private.rs
+
+/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/deps/libthiserror-ae776df18c4f0f63.rlib: /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/thiserror-046ce482b5328581/out/private.rs
+
+/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/deps/libthiserror-ae776df18c4f0f63.rmeta: /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/thiserror-046ce482b5328581/out/private.rs
+
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs:
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs:
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs:
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs:
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs:
+/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/thiserror-046ce482b5328581/out/private.rs:
+
+# env-dep:OUT_DIR=/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/thiserror-046ce482b5328581/out

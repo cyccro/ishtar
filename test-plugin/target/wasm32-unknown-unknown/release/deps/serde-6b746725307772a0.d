@@ -1,0 +1,14 @@
+/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/deps/serde-6b746725307772a0.d: /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/serde-39d2a16c540dc8d3/out/private.rs
+
+/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/deps/libserde-6b746725307772a0.rlib: /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/serde-39d2a16c540dc8d3/out/private.rs
+
+/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/deps/libserde-6b746725307772a0.rmeta: /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/serde-39d2a16c540dc8d3/out/private.rs
+
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/caina/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/serde-39d2a16c540dc8d3/out/private.rs:
+
+# env-dep:OUT_DIR=/home/caina/programming/ishtar/test-plugin/target/wasm32-unknown-unknown/release/build/serde-39d2a16c540dc8d3/out

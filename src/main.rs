@@ -1,4 +1,5 @@
 use ishtar::Ishtar;
+mod plugins;
 mod helpers;
 mod ishtar;
 mod widgets;

@@ -1,4 +1,61 @@
-Info: /home/caina/programming/ishtar; at 2026-05-11T19:06:27.092242975
-Info: Initialize Process; at 2026-05-11T19:06:27.092313876
-Info: EnterNormal; at 2026-05-11T19:08:28.833895949
-Info: EnterNormal; at 2026-05-11T19:08:28.954004874
+Error: . Sent at 2026-05-13 08:52:12.403070101 -03:00
+Info: /home/caina/programming/ishtar; at 2026-05-13T11:52:12.403273058
+Info: Initialize Process; at 2026-05-13T11:52:12.403283216
+Info: Corno; at 2026-05-13T11:52:13.541970263
+Info: Corno; at 2026-05-13T11:52:14.485739615
+Info: Corno; at 2026-05-13T11:52:14.693969314
+Info: Corno; at 2026-05-13T11:52:14.885794124
+Info: EnterNormal; at 2026-05-13T11:52:26.189517593
+Info: Corno; at 2026-05-13T11:52:26.189589606
+Info: Corno; at 2026-05-13T11:52:26.774108520
+Info: Corno; at 2026-05-13T11:52:27.269639707
+Info: Corno; at 2026-05-13T11:52:27.861505537
+Info: Corno; at 2026-05-13T11:52:27.981900620
+Info: Corno; at 2026-05-13T11:52:28.485814818
+Info: Corno; at 2026-05-13T11:52:28.758252495
+Info: Exit; at 2026-05-13T11:52:28.925705586
+Info: Corno; at 2026-05-13T11:52:28.925786947
+11:46:22.948883687
+Info: Gay foi de sync; at 2026-05-13T11:46:23.956458614
+Info: Gay foi de sync; at 2026-05-13T11:46:24.668501977
+Info: Gay foi de sync; at 2026-05-13T11:46:25.461012217
+Info: Exit; at 2026-05-13T11:46:25.661013320
+Info: Gay foi de sync; at 2026-05-13T11:46:25.661089893
+-13T11:35:50.580487367
+Info: Gay foi de sync; at 2026-05-13T11:35:51.156052213
+Info: Gay foi de sync; at 2026-05-13T11:35:51.628698420
+Info: Gay foi de sync; at 2026-05-13T11:35:51.948671262
+Info: StopSearch; at 2026-05-13T11:35:52.180561659
+Warn: Unhandled task: StopSearch; at 2026-05-13T11:35:52.180633713
+Info: Gay foi de sync; at 2026-05-13T11:35:52.180640997
+Info: Multi([ModifyFile("/home/caina/programming/ishtar/.gitignore"), StopSearch]); at 2026-05-13T11:35:52.388262634
+Info: ModifyFile("/home/caina/programming/ishtar/.gitignore"); at 2026-05-13T11:35:52.388318387
+Info: StopSearch; at 2026-05-13T11:35:52.388419856
+Warn: Unhandled task: StopSearch; at 2026-05-13T11:35:52.388437609
+Info: Gay foi de sync; at 2026-05-13T11:35:52.388442839
+Info: StopSearch; at 2026-05-13T11:35:53.716570417
+Warn: Unhandled task: StopSearch; at 2026-05-13T11:35:53.716664342
+Info: Gay foi de sync; at 2026-05-13T11:35:53.716765199
+Info: StopSearch; at 2026-05-13T11:35:53.851800563
+Warn: Unhandled task: StopSearch; at 2026-05-13T11:35:53.851857840
+Info: Gay foi de sync; at 2026-05-13T11:35:53.851863059
+Info: Gay foi de sync; at 2026-05-13T11:35:54.516234692
+Info: Gay foi de sync; at 2026-05-13T11:35:54.644629380
+Info: Multi([ModifyFile("/home/caina/programming/ishtar/.gitignore"), StopSearch]); at 2026-05-13T11:35:54.812394412
+Info: ModifyFile("/home/caina/programming/ishtar/.gitignore"); at 2026-05-13T11:35:54.812475132
+Info: StopSearch; at 2026-05-13T11:35:54.812572103
+Warn: Unhandled task: StopSearch; at 2026-05-13T11:35:54.812579156
+Info: Gay foi de sync; at 2026-05-13T11:35:54.812584536
+Info: Gay foi de sync; at 2026-05-13T11:35:56.116203284
+Info: Gay foi de sync; at 2026-05-13T11:35:57.035700081
+Info: Multi([ModifyFile("/home/caina/programming/ishtar/.gitignore"), StopSearch]); at 2026-05-13T11:35:57.212595671
+Info: ModifyFile("/home/caina/programming/ishtar/.gitignore"); at 2026-05-13T11:35:57.212680028
+Info: StopSearch; at 2026-05-13T11:35:57.212754947
+Warn: Unhandled task: StopSearch; at 2026-05-13T11:35:57.212761389
+Info: Gay foi de sync; at 2026-05-13T11:35:57.212765707
+Info: StopSearch; at 2026-05-13T11:35:57.876006420
+Warn: Unhandled task: StopSearch; at 2026-05-13T11:35:57.876084756
+Info: Gay foi de sync; at 2026-05-13T11:35:57.876093522
+Info: StopSearch; at 2026-05-13T11:35:58.004188748
+Warn: Unhandled task: StopSearch; at 2026-05-13T11:35:58.004243209
+Info: Gay foi de sync; at 2026-05-13T11:35:58.004249140

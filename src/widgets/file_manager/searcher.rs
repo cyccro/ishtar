@@ -8,33 +8,27 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Padding, Paragraph, Widget, Wrap},
 };
-use tachyonfx::{fx, Duration as FxDuration, Interpolation, Shader};
+use tachyonfx::{Duration as FxDuration, Interpolation, Shader, fx};
 
 use crate::helpers::{min_max, terminal_size};
 
 pub struct Searcher {
-    preview: bool,
-    orientation: Direction,
     pub in_dir_paths: Vec<PathBuf>,
     pub current_idx: usize,
-    colors: [Color; 3],
     pub writing_idx: usize,
     cursor: (usize, usize),
 }
 impl Searcher {
-    pub fn new(orientation: Direction, path: PathBuf, colors: [Color; 3]) -> Self {
+    pub fn new(path: PathBuf) -> Self {
         let size = terminal_size();
         Self {
             writing_idx: 0,
             cursor: ((size.0 / 4) as usize + 1, (size.1 / 4 + 1) as usize),
-            preview: false,
             current_idx: 0,
-            orientation,
             in_dir_paths: std::fs::read_dir(&path)
                 .unwrap()
                 .map(|dir| dir.unwrap().path())
                 .collect(),
-            colors,
         }
     }
     pub fn cursor(&self) -> (usize, usize) {
@@ -141,9 +135,9 @@ impl Searcher {
                     bottom_right: symbols::line::ROUNDED.vertical_left,
                     ..symbols::border::PLAIN
                 })
-                .border_style(self.colors[1])
+                .border_style(Color::from_u32(0xffffffff))
                 .borders(Borders::LEFT | Borders::RIGHT | Borders::TOP | Borders::BOTTOM)
-                .title_style(self.colors[0])
+                .title_style(Color::from_u32(0xffffffff))
                 .title("Searching");
             Paragraph::new(Span::from(content))
                 .wrap(Wrap { trim: true })
@@ -210,22 +204,17 @@ impl Searcher {
                     )
                 }
             };
-            let mut fx = fx::fade_to_fg(Color::White, (1000, Interpolation::CircOut));
 
             Paragraph::new(lines)
                 .block(
                     Block::new()
                         .border_set(set)
-                        .border_style(self.colors[1])
+                        .border_style(Color::from_u32(0xffffffff))
                         .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
                         .padding(Padding::new(2, 2, 0, 0)),
                 )
                 .wrap(Wrap { trim: true })
                 .render(rect, buf);
-
-            loop {
-                fx.process(FxDuration::from_millis(33), buf, rect);
-            }
         }
     }
 }

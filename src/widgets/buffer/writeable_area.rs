@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
+use std::ops::{Deref, DerefMut};
 
 use ratatui::{crossterm::event::KeyCode, prelude::Rect, widgets::Widget, Frame};
 
@@ -18,28 +14,25 @@ pub struct WriteableArea {
     order: AreaOrder,
     focused_writer: usize,
     area: (u16, u16),
-    colors: Arc<HashMap<String, u32>>,
 }
 
 impl WriteableArea {
-    pub fn new_horizontal(w: u16, h: u16, colors: Arc<HashMap<String, u32>>) -> Self {
+    pub fn new_horizontal(w: u16, h: u16) -> Self {
         let mut s = Self {
             writers: Vec::new(),
             order: AreaOrder::Horizontal,
             focused_writer: 0,
             area: (w, h),
-            colors,
         };
         s.create_area();
         s
     }
-    pub fn new_vertical(w: u16, h: u16, colors: Arc<HashMap<String, u32>>) -> Self {
+    pub fn new_vertical(w: u16, h: u16) -> Self {
         let mut s = Self {
             writers: Vec::new(),
             order: AreaOrder::Vertical,
             focused_writer: 0,
             area: (w, h),
-            colors,
         };
         s.create_area();
         s
@@ -47,16 +40,10 @@ impl WriteableArea {
     ///Gets the cursor position based on the active text area
     pub fn cursor(&self) -> (usize, usize) {
         let current_writer = &self.writers[self.focused_writer];
-        let w = if let AreaOrder::Horizontal = self.order {
-            self.area.0 as usize / self.len() * self.focused_writer + current_writer.cursor_x()
-        } else {
-            self.cursor_x()
-        };
-        let y = if let AreaOrder::Vertical = self.order {
-            self.area.1 as usize / self.len() * self.focused_writer + current_writer.cursor_y()
-        } else {
-            self.cursor_y()
-        };
+        let w = current_writer.posx() as usize
+            + current_writer.xoffset()
+            + current_writer.cursor_x();
+        let y = current_writer.posy() as usize + current_writer.cursor_y();
         (w, y)
     }
     ///Gets how many TexArea this Writeable is handling
@@ -168,6 +155,19 @@ impl DerefMut for WriteableArea {
     }
 }
 impl IshtarSelectable for WriteableArea {
+    fn cursor(&self) -> Option<(usize, usize)> {
+        Some(self.cursor())
+    }
+
+    fn area(&self) -> Option<Rect> {
+        Some(Rect {
+            x: 0,
+            y: 0,
+            width: self.area.0,
+            height: self.area.1,
+        })
+    }
+
     fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> CmdTask {
         match key {
             KeyCode::Esc => return CmdTask::EnterNormal,
@@ -195,7 +195,7 @@ impl Widget for &WriteableArea {
         Self: Sized,
     {
         for writer in &self.writers {
-            writer.render_colored(&self.colors, buf);
+            writer.render_colored(buf);
         }
     }
 }

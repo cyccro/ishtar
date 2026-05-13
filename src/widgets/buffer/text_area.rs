@@ -1,8 +1,6 @@
 use std::{
-    collections::HashMap,
     ffi::OsStr,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 use ratatui::{
@@ -27,15 +25,16 @@ pub enum TextAreaMode {
 ///Writing buffer
 #[derive(Debug)]
 pub struct TextArea {
+    x: usize, //cursorx
+    y: usize, //cursory
+    //for aligning the cursor
+    punctuator: Option<char>,
     position: Vec2,
     size: Vec2,
     selection_cursor: Vec2,
-    x: usize, //cursorx
-    y: usize, //cursory
     lines: Vec<TerminalLine>,
-    byte_offsets: Vec<usize>, //will be used for getting the offset received from multibyte chars and so,
-    //for aligning the cursor
-    punctuator: Option<char>,
+    //will be used for getting the offset received from multibyte chars and so,
+    byte_offsets: Vec<usize>,
     editing_file: Option<PathBuf>,
     mode: TextAreaMode,
 }
@@ -528,14 +527,14 @@ impl TextArea {
     pub fn is_selecting(&self) -> bool {
         matches!(self.mode, TextAreaMode::Selecting)
     }
-    pub fn render_colored(&self, colors: &Arc<HashMap<String, u32>>, buf: &mut Buffer) {
+    pub fn render_colored(&self, buf: &mut Buffer) {
         let w = self.size.x() as usize;
-        let fg = (**colors).get("text_fg").cloned().unwrap_or(0xffffff);
+        let fg = 0xffffff;
         let lines: Vec<Line> = if self.is_selecting() {
             self.visible_lines()
                 .into_iter()
                 .map(|(idx, content)| {
-                    let select_bg = (**colors).get("select_bg").cloned().unwrap_or(0xff0000);
+                    let select_bg = 0xff0000;
                     let sidx = idx.to_string();
                     let pos = w - sidx.len() - 1;
                     let style = Style::default()
@@ -617,10 +616,7 @@ impl TextArea {
             "Not a File".into()
         };
         let len = file_name.width();
-        Paragraph::new(file_name.style(Style::default().fg(Color::from_u32(
-            (**colors).get("file_name_color").cloned().unwrap_or(fg),
-        ))))
-        .render(
+        Paragraph::new(file_name.style(Style::default().fg(Color::from_u32(fg)))).render(
             Rect {
                 width: len as u16,
                 x: self.posx(),

@@ -1,6 +1,6 @@
 use std::{
     fmt::{Arguments, Display},
-    fs::File,
+    fs::{File, OpenOptions},
     io::Write,
     ops::{Deref, DerefMut},
 };
@@ -21,13 +21,14 @@ pub struct IshtarLogger {
 impl IshtarLogger {
     pub fn new() -> std::io::Result<Self> {
         let f_path = std::path::Path::new("./tmp/log.txt");
+        println!("{:?}", std::env::current_dir());
         //Used to open a terminal and show its contents but only writes on the file now.
         Ok(Self {
-            f: if f_path.exists() {
-                File::create(f_path).unwrap()
-            } else {
-                File::create_new(f_path).unwrap()
-            },
+            f: OpenOptions::new()
+                .write(true)
+                .create(true)
+                .read(true)
+                .open(f_path)?,
             queue: String::new(),
         })
     }
