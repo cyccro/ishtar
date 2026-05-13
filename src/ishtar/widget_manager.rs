@@ -1,38 +1,38 @@
+use std::ops::{Deref, DerefMut};
+
+use ratatui::widgets::Widget;
+
 use crate::helpers::terminal_size;
 
 use crate::widgets::{
-    CommandInterpreter, FocusSide, IshtarSelectable, WriteableArea,
-    file_manager::FileManager,
-    keybind_handler::{KeybindHandler, Keybinds},
+    CommandInterpreter, FocusSide, IshtarSelectable, WriteableArea, file_manager::FileManager,
+    keybind_handler::KeybindHandler,
 };
-
-use super::Ishtar;
 
 /// Owns and provides typed access to all editor widgets.
 pub struct WidgetManager {
+    writeable: WriteableArea,
+    command_interpreter: CommandInterpreter,
+    keybinds: KeybindHandler,
     /// All registered widgets, rendered and dispatched in order.
-    pub widgets: Vec<Box<dyn IshtarSelectable>>,
+    widgets: Vec<Box<dyn IshtarSelectable>>,
     /// Index of the currently focused widget.
-    pub focused: usize,
+    focused: usize,
 }
 
 impl WidgetManager {
+    pub const WRITEABLE_INDEX: usize = 0;
+    pub const COMMAND_INTERPRETER_INDEX: usize = 1;
+    pub const KEYBINDS_INDEX: usize = 2;
     pub fn new() -> Self {
         let size = terminal_size();
         Self {
-            widgets: vec![
-                Box::new(WriteableArea::new_vertical(size.0, size.1 - 1)),
-                Box::new(CommandInterpreter::new(size.0, size.1)),
-                Box::new(KeybindHandler::new(Keybinds::new())),
-                Box::new(FileManager::new(true, std::env::current_dir().unwrap())),
-            ],
+            writeable: WriteableArea::new_vertical(size.0, size.1 - 1),
+            command_interpreter: CommandInterpreter::new(size.0, size.1),
+            keybinds: KeybindHandler::new(),
+            widgets: vec![],
             focused: 0,
         }
-    }
-
-    /// Returns a mutable reference to the currently focused widget.
-    pub fn focused_mut(&mut self) -> &mut Box<dyn IshtarSelectable> {
-        &mut self.widgets[self.focused]
     }
 
     /// Advance focus to the next widget (wraps around).
@@ -43,9 +43,8 @@ impl WidgetManager {
 
     /// Move focus to the previous widget (wraps around).
     pub fn focus_previous(&mut self) {
-        let len = self.widgets.len();
         self.focused = if self.focused == 0 {
-            len - 1
+            self.widgets.len() - 1
         } else {
             self.focused - 1
         };
@@ -53,9 +52,7 @@ impl WidgetManager {
 
     /// Set focus to a specific widget index.
     pub fn set_focus(&mut self, index: usize) {
-        if index < self.widgets.len() {
-            self.focused = index;
-        }
+        self.focused = index;
     }
 
     /// Move focus in a spatial direction based on widget bounding rects.
@@ -120,73 +117,102 @@ impl WidgetManager {
         }
     }
 
-    /// Returns a reference to the widget of type `T`, or `None` if not registered.
-    pub fn get_widget<T: IshtarSelectable>(&self) -> Option<&T> {
-        self.widgets.iter().find_map(|w| w.downcast_ref::<T>())
-    }
-
-    /// Returns a mutable reference to the widget of type `T`, or `None` if not registered.
-    pub fn get_widget_mut<T: IshtarSelectable>(&mut self) -> Option<&mut T> {
-        self.widgets.iter_mut().find_map(|w| w.downcast_mut::<T>())
-    }
-
     /// Convenience accessor for the text editing area.
     ///
     /// # Panics
     /// Panics if `WriteableArea` is not registered (should never happen in normal use).
     pub fn writer(&self) -> &WriteableArea {
-        self.get_widget::<WriteableArea>()
-            .expect("WriteableArea not found")
+        &self.writeable
     }
 
     /// Mutable convenience accessor for the text editing area.
     pub fn writer_mut(&mut self) -> &mut WriteableArea {
-        self.get_widget_mut::<WriteableArea>()
-            .expect("WriteableArea not found")
+        &mut self.writeable
     }
-
-    pub fn set_focus_to<T: IshtarSelectable>(&mut self) {
-        let id = self
-            .widgets
-            .iter()
-            .position(|p| p.downcast_ref::<T>().is_some())
-            .unwrap_or(2);
-        self.focused = id; //3 == command interpreter
-    }
-
     /// Convenience accessor for the command interpreter.
     pub fn cmd(&self) -> &CommandInterpreter {
-        self.get_widget::<CommandInterpreter>()
-            .expect("CommandInterpreter not found")
+        &self.command_interpreter
     }
 
     /// Mutable convenience accessor for the command interpreter.
     pub fn cmd_mut(&mut self) -> &mut CommandInterpreter {
-        self.get_widget_mut::<CommandInterpreter>()
-            .expect("CommandInterpreter not found")
+        &mut self.command_interpreter
     }
 
     /// Convenience accessor for the keybind handler.
     pub fn keybind(&self) -> &KeybindHandler {
-        self.get_widget::<KeybindHandler>()
-            .expect("KeybindHandler not found")
+        &self.keybinds
     }
 
     /// Mutable convenience accessor for the keybind handler.
     pub fn keybind_mut(&mut self) -> &mut KeybindHandler {
-        self.get_widget_mut::<KeybindHandler>()
-            .expect("KeybindHandler not found")
+        &mut self.keybinds
+    }
+}
+
+impl IshtarSelectable for WidgetManager {
+    fn cursor(&self) -> Option<(usize, usize)> {
+        (**self).cursor()
     }
 
-    /// Convenience accessor for the file manager.
-    pub fn file_manager(&self) -> &FileManager {
-        self.get_widget::<FileManager>()
-            .expect("FileManager not found")
+    fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> crate::widgets::CmdTask {
+        match self.focused {
+            Self::WRITEABLE_INDEX => self.writeable.keydown(key),
+            Self::COMMAND_INTERPRETER_INDEX => self.command_interpreter.keydown(key),
+            Self::KEYBINDS_INDEX => self.keybinds.keydown(key),
+            _ => self.widgets[self.focused - 3].keydown(key),
+        }
     }
+    fn can_render(&self) -> bool {
+        true
+    }
+    fn keydown(&mut self, key: ratatui::crossterm::event::KeyCode) -> crate::widgets::CmdTask {
+        match self.focused {
+            Self::WRITEABLE_INDEX => self.writeable.keydown(key),
+            Self::COMMAND_INTERPRETER_INDEX => self.command_interpreter.keydown(key),
+            Self::KEYBINDS_INDEX => self.keybinds.keydown(key),
+            _ => self.widgets[self.focused - 3].keydown(key),
+        }
+    }
+    fn can_render(&self) -> bool {
+        true
+    }
+    fn renderize(&self, f: &mut ratatui::Frame, area: ratatui::prelude::Rect) {
+        if self.writeable.can_render() {
+            self.writeable.render(area, f.buffer_mut());
+        }
+        if self.command_interpreter.can_render() {
+            self.command_interpreter.render(area, f.buffer_mut());
+        }
+        if self.keybinds.can_render() {
+            self.keybinds.render(area, f.buffer_mut());
+        }
+        for widget in &self.widgets {
+            if widget.can_render() {
+                widget.renderize(f, area);
+            }
+        }
+    }
+}
 
-    /// Mutable convenience accessor for the file manager.
-    pub fn file_manager_mut(&mut self) -> &mut FileManager {
-        self.get_widget_mut::<FileManager>()
-            .expect("FileManager not found")
+impl Deref for WidgetManager {
+    type Target = dyn IshtarSelectable;
+    fn deref(&self) -> &Self::Target {
+        match self.focused {
+            Self::WRITEABLE_INDEX => &self.writeable,
+            Self::COMMAND_INTERPRETER_INDEX => &self.command_interpreter,
+            Self::KEYBINDS_INDEX => &self.keybinds,
+            n => &*self.widgets[n],
+        }
+    }
+}
+impl DerefMut for WidgetManager {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self.focused {
+            Self::WRITEABLE_INDEX => &mut self.writeable,
+            Self::COMMAND_INTERPRETER_INDEX => &mut self.command_interpreter,
+            Self::KEYBINDS_INDEX => &mut self.keybinds,
+            n => &mut *self.widgets[n],
+        }
     }
 }

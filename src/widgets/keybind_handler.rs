@@ -1,20 +1,20 @@
-use std::{collections::HashMap, ops::Deref, sync::Arc};
+use std::collections::HashMap;
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyCode, KeyModifiers},
     layout::{Alignment, Rect},
     style::{Color, Style},
     text::Text,
     widgets::{Block, Borders, Paragraph, Widget},
-    Frame,
 };
 
-use crate::widgets::CmdTask;
+use crate::widgets::{CmdTask, IshtarMode};
 
 use super::IshtarSelectable;
 
 /// Keybind map: `"MODIFIER-key"` string → list of tasks per mode index.
-pub type Keybinds = HashMap<String, Vec<Vec<CmdTask>>>;
+pub type Keybinds = HashMap<String, CmdTask>;
 
 /// Handles modifier-initiated keybind sequences (e.g. `Ctrl-w`, `Alt-x`).
 ///
@@ -28,19 +28,23 @@ pub struct KeybindHandler {
     /// Keys captured since listening started, stored as strings.
     pub buffer: Vec<String>,
     /// Index of the current editor mode, used to look up the right binding.
-    pub current_mode: usize,
+    pub current_mode: IshtarMode,
     /// Registered keybinds: sequence string → per-mode task lists.
-    keybinds: Keybinds,
+    cmd_keybinds: Keybinds,
+    modify_keybinds: Keybinds,
+    select_keybinds: Keybinds,
 }
 
 impl KeybindHandler {
-    pub fn new(keybinds: Keybinds) -> Self {
+    pub fn new() -> Self {
         Self {
             initializer: KeyModifiers::NONE,
             listening: false,
             buffer: Vec::new(),
-            current_mode: 0,
-            keybinds,
+            current_mode: IshtarMode::Cmd,
+            cmd_keybinds: Keybinds::default(),
+            modify_keybinds: Keybinds::default(),
+            select_keybinds: Keybinds::default(),
         }
     }
 
@@ -74,15 +78,14 @@ impl KeybindHandler {
 
     /// Appends `key` to the buffer if currently listening.
     pub fn handle(&mut self, key: KeyCode) {
-        if !self.listening {
-            return;
+        if self.listening {
+            let s = match key {
+                KeyCode::Modifier(m) => m.to_string(),
+                KeyCode::Char(c) => c.to_string(),
+                k => k.to_string(),
+            };
+            self.buffer.push(s);
         }
-        let s = match key {
-            KeyCode::Modifier(m) => m.to_string(),
-            KeyCode::Char(c) => c.to_string(),
-            k => k.to_string(),
-        };
-        self.buffer.push(s);
     }
 
     /// Returns the current buffer joined as a single `"MOD-key1-key2"` string.
@@ -95,10 +98,15 @@ impl KeybindHandler {
     }
 
     /// Looks up the task list for `sequence` in the given `mode`.
-    pub fn get(&self, sequence: &str, mode: usize) -> Option<&Vec<CmdTask>> {
-        self.keybinds
-            .get(sequence)
-            .and_then(|modes| modes.get(mode))
+    pub fn get(&self, sequence: &str, mode: IshtarMode) -> Option<&CmdTask> {
+        match mode {
+            IshtarMode::Cmd => self.cmd_keybinds.get(sequence),
+            IshtarMode::Modify => self.modify_keybinds.get(sequence),
+            IshtarMode::Selection => self.select_keybinds.get(sequence),
+        }
+    }
+    pub fn set_mode(&mut self, mode: IshtarMode) {
+        self.current_mode = mode;
     }
 }
 
@@ -152,7 +160,6 @@ impl IshtarSelectable for KeybindHandler {
                 let task = self
                     .get(&content, self.current_mode)
                     .cloned()
-                    .map(|tasks| CmdTask::Multi(tasks))
                     .unwrap_or(CmdTask::Null);
                 self.stop_listening();
                 // Always return to the saved mode after a sequence completes.

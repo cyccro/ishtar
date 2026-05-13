@@ -1,0 +1,118 @@
+ISHTARX REFACTORING AND IMPROVEMENT TODO LIST
+=============================================
+
+Generated: 2026-05-12T13:13:37-03:00
+Working Directory: /home/caina/programming/ishtar
+
+HIGH PRIORITY ISSUES
+--------------------
+
+1. FIX MISSING 'ISHT' DEPENDENCY
+   - Remove all references to external 'isht' crate
+   - The IshtarSelectable trait is actually defined locally in src/widgets/mod.rs
+   - Update imports to use local trait instead of non-existent dependency
+   - Files affected: src/ishtar/mod.rs, src/main.rs, src/helpers/functions.rs
+
+2. REPLACE .unwrap() CALLS WITH PROPER ERROR HANDLING
+   - env::current_dir().unwrap() in WidgetManager::new()
+   - std::fs::read_to_string(fpath) in TextArea::open_file()
+   - size().unwrap() in helpers::terminal_size()
+   - Any other unchecked unwraps throughout codebase
+   - Use anyhow::Result or custom error types
+
+MEDIUM PRIORITY REFACTORING
+---------------------------
+
+3. SPLIT LARGE FILES INTO SMALLER MODULES
+   - src/widgets/buffer/text_area.rs (640 lines):
+     * buffer.rs - Text storage and manipulation
+     * cursor.rs - Cursor movement logic
+     * renderer.rs - Display and color logic
+     * file_ops.rs - File loading and saving operations
+   - src/ishtar/mod.rs (284 lines):
+     * Split into logical components (event handling, rendering, mode management)
+
+4. IMPROVE NAMING CONSISTENCY
+   - Standardize getter/setter naming (use x()/set_x() or get_x()/set_x() consistently)
+   - Rename confusing methods like posx()/posy() to x()/y()
+   - Clarify purpose of WriteableArea vs TextArea
+   - Use consistent naming for similar concepts across files
+
+5. OPTIMIZE PERFORMANCE CRITICAL SECTIONS
+   - TextArea::visible_lines() - Simplify complex bounds calculation
+   - Focus navigation algorithms - Consider simpler spatial partitioning
+   - String manipulation in rendering - Minimize allocations
+   - Cache frequently calculated values where appropriate
+
+6. IMPROVE ERROR REPORTING AND LOGGING
+   - Replace panic!() calls with proper error propagation
+   - Enhance logger to provide more context
+   - Add error recovery mechanisms where possible
+
+LOW PRIORITY ENHANCEMENTS
+-------------------------
+
+7. ENHANCE DOCUMENTATION
+   - Add docstrings to public APIs and complex algorithms
+   - Improve module-level documentation
+   - Add examples for key functionality
+
+8. ADD UNIT AND INTEGRATION TESTS
+   - Test core text buffer operations
+   - Test widget interactions
+   - Test key handling and mode transitions
+   - Test file loading/saving operations
+
+9. CODE STYLE AND FORMATTING
+   - Run cargo fmt to ensure consistent formatting
+   - Fix clippy warnings
+   - Organize and sort imports consistently
+
+10. ARCHITECTURAL IMPROVEMENTS
+    - Extract trait definitions to dedicated module
+    - Improve separation between model (data) and view (presentation)
+    - Implement proper widget registration/deregistration system
+    - Consider event bus pattern for decoupling components
+
+SPECIFIC FILE TASKS
+-------------------
+
+src/helpers/functions.rs:
+- Make terminal_size() return Result<u16, u16> instead of panicking
+- Consider renaming char_size_* functions for clarity
+
+src/widgets/buffer/text_area.rs:
+- Break into multiple focused files as described above
+- Improve algorithm efficiency in visible_lines()
+- Standardize cursor positioning methods
+
+src/ishtar/mod.rs:
+- Split responsibilities into smaller, focused modules
+- Improve error handling in plugin loading
+- Refactor event handling logic
+
+src/ishtar/widget_manager.rs:
+- Consider making widget registration more dynamic
+- Improve focus management algorithms
+
+src/widgets/mod.rs:
+- Ensure all traits are properly documented and exported
+- Review trait method signatures for completeness
+
+BUILD AND DEPENDENCY IMPROVEMENTS
+---------------------------------
+
+- Verify all dependencies in Cargo.tomol are actually used
+- Consider updating dependencies to latest compatible versions
+- Add dev-dependencies for testing (quick_assert, proptest, etc.)
+- Ensure Cargo.lock is up to date
+
+FINAL VALIDATION
+----------------
+
+- Ensure editor still builds and runs correctly after changes
+- Test all core functionality: editing, file operations, modes, plugins
+- Verify no regressions in user experience
+- Run any existing test suite
+
+NOTE: This TODO list was generated based on code analysis. Prioritize items based on actual impact and dependencies between tasks.

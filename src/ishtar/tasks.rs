@@ -119,12 +119,9 @@ impl Ishtar {
             CmdTask::FocusPrevious => self.widgets_manager.focus_previous(),
             CmdTask::FocusWidget(i) => self.widgets_manager.set_focus(*i),
             CmdTask::FocusDirection(side) => self.widgets_manager.focus_direction(*side),
-
-            CmdTask::ReqSearchRoot => self.request_search(true),
             CmdTask::Reset => {
                 self.widgets_manager.writer_mut().reset();
             }
-            CmdTask::StopSearch => self.stop_search(),
             CmdTask::Exit => self.exit = true,
 
             // Tasks that are handled by widgets directly or not yet implemented.

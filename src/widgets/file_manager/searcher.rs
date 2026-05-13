@@ -8,7 +8,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Padding, Paragraph, Widget, Wrap},
 };
-use tachyonfx::{fx, Duration as FxDuration, Interpolation, Shader};
+use tachyonfx::{Duration as FxDuration, Interpolation, Shader, fx};
 
 use crate::helpers::{min_max, terminal_size};
 
@@ -204,7 +204,6 @@ impl Searcher {
                     )
                 }
             };
-            let mut fx = fx::fade_to_fg(Color::White, (1000, Interpolation::CircOut));
 
             Paragraph::new(lines)
                 .block(
@@ -216,10 +215,6 @@ impl Searcher {
                 )
                 .wrap(Wrap { trim: true })
                 .render(rect, buf);
-
-            loop {
-                fx.process(FxDuration::from_millis(33), buf, rect);
-            }
         }
     }
 }

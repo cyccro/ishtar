@@ -3,7 +3,7 @@ mod tasks;
 mod widget_manager;
 
 use crate::widgets::{
-    CommandInterpreter, IshtarClipboard, IshtarCursor, IshtarMode, IshtarModeManager, WriteableArea,
+    IshtarClipboard, IshtarCursor, IshtarMode, IshtarModeManager, IshtarSelectable,
 };
 use logger::{IshtarLogger, LogLevel};
 use std::{
@@ -16,7 +16,7 @@ use widget_manager::WidgetManager;
 use crate::{
     helpers::Vec2,
     plugins::{PluginCmd, PluginManager},
-    widgets::{CmdTask, file_manager::ManagingMode},
+    widgets::CmdTask,
 };
 
 use ratatui::{
@@ -69,7 +69,11 @@ impl Ishtar {
 
         out
     }
-
+    /// Returns the cursor position as a Ratatui `Position`.
+    #[inline]
+    fn cursor_position(&self) -> Position {
+        Position::new(self.cursor.cursor().x(), self.cursor.cursor().y())
+    }
     fn draw(&mut self, f: &mut Frame) {
         f.set_cursor_position(self.cursor_position());
         self.render_widgets(f);
@@ -93,24 +97,9 @@ impl Ishtar {
         Ok(())
     }
 
-    /// Returns the cursor position as a Ratatui `Position`.
-    #[inline]
-    fn cursor_position(&self) -> Position {
-        Position::new(self.cursor.cursor().x(), self.cursor.cursor().y())
-    }
-
     /// Saves the current cursor position for later restoration.
     pub fn save_position(&mut self) {
         self.cursor.save();
-    }
-
-    /// Returns the current mode as a `usize` index (used for keybind lookup).
-    fn mode_id(&self) -> usize {
-        match self.mode.current_mode() {
-            IshtarMode::Cmd => 0,
-            IshtarMode::Modify => 1,
-            IshtarMode::Selection => 2,
-        }
     }
 
     /// Transitions the editor to `mode`, updating the relevant widget state.
@@ -128,32 +117,17 @@ impl Ishtar {
                 }
                 writer.set_cursor_x(x as usize);
                 writer.set_cursor_y(y as usize);
-                self.widgets_manager.set_focus_to::<WriteableArea>();
+                self.widgets_manager
+                    .set_focus(WidgetManager::WRITEABLE_INDEX);
             }
             IshtarMode::Cmd => {
                 self.save_position();
                 self.widgets_manager.cmd_mut().clear();
-                self.widgets_manager.set_focus_to::<CommandInterpreter>();
+                self.widgets_manager
+                    .set_focus(WidgetManager::COMMAND_INTERPRETER_INDEX);
             }
         }
         self.mode.goto_mode(mode);
-    }
-
-    /// Opens the file-search widget. If `reset_dir` is `true`, resets the search root.
-    pub fn request_search(&mut self, reset_dir: bool) {
-        let file_manager = self.widgets_manager.file_manager_mut();
-        file_manager.mode = ManagingMode::Searching;
-        if reset_dir {
-            file_manager.update_searcher_dir(&self.current_path);
-        }
-        self.widgets_manager.file_manager_mut().open();
-        self.widgets_manager.set_focus(3); // FileManager
-    }
-
-    /// Closes the file-search widget.
-    pub fn stop_search(&mut self) {
-        self.widgets_manager.file_manager_mut().close();
-        self.widgets_manager.set_focus(0); // WriteableArea
     }
 
     /// Checks whether a modifier-initiated keybind sequence should start.
@@ -165,13 +139,13 @@ impl Ishtar {
                 .keybind_mut()
                 .start_listening(key.code, key.modifiers);
             let content = self.widgets_manager.keybind().content();
-            if let Some(tasks) = self
+            if let Some(task) = self
                 .widgets_manager
                 .keybind()
-                .get(&content, self.mode_id())
-                .cloned()
+                .get(&content, self.mode.current_mode())
             {
-                self.handle_tasks(&tasks);
+                self.handle_task(&task.clone()).unwrap();
+
                 self.widgets_manager.keybind_mut().stop_listening();
             }
             return CmdTask::Null;
@@ -228,7 +202,7 @@ impl Ishtar {
             return;
         }
 
-        let task = self.widgets_manager.focused_mut().keydown(key.code);
+        let task = self.widgets_manager.keydown(key.code);
         let _ = self.handle_task(&task);
 
         self.sync_cursor();
@@ -254,8 +228,8 @@ impl Ishtar {
 
     /// Synchronises the terminal cursor position from the focused widget.
     fn sync_cursor(&mut self) {
-        if let Some((cx, cy)) = self.widgets_manager.widgets[self.widgets_manager.focused].cursor()
-        {
+        if let Some((cx, cy)) = self.widgets_manager.cursor() {
+            self.display("Corno", LogLevel::Info);
             self.cursor.set_cursor(Vec2::new(cx as u16, cy as u16));
         }
     }
@@ -271,11 +245,7 @@ impl Ishtar {
     /// Renders all widgets that report `can_render() == true`.
     pub fn render_widgets(&mut self, frame: &mut Frame) {
         let area = frame.area();
-        for i in 0..self.widgets_manager.widgets.len() {
-            if self.widgets_manager.widgets[i].can_render() {
-                self.widgets_manager.widgets[i].renderize(frame, area);
-            }
-        }
+        self.widgets_manager.renderize(frame, area);
     }
 }
 

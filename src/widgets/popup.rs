@@ -1,7 +1,8 @@
 use ratatui::{
+    layout::Position,
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{block::Position, Block, BorderType, Borders, Clear, Paragraph, Widget},
+    widgets::{Block, BorderType, Borders, Clear, Paragraph, TitlePosition, Widget},
 };
 
 pub enum PopUpAlignment {
@@ -91,7 +92,7 @@ impl Widget for PopUp {
         Clear.render(area, buf);
         let block = Block::new()
             .borders(self.borders)
-            .title_position(Position::Top)
+            .title_position(TitlePosition::Top)
             .border_type(self.border_style)
             .title_alignment(ratatui::layout::Alignment::Center)
             .title_style(Style::new().fg(self.title_color))
